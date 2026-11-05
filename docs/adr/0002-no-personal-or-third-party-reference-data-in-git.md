@@ -1,0 +1,3 @@
+# Personal photos and 360craft artefacts never enter git history
+
+The repository will be made public under an open-source license. The panoramas used to check fidelity are personal family photos, and the recovered 360craft `outline.dxf` / `outline.ai` are the original author's files with no license. So all of them live only in the gitignored `photo examples/` folder on the maintainer's machine. Regression tests that need them look there and skip with a clear message when they're absent. The only things committed from them are numbers measured from them (documented with their provenance). Shareable test panoramas supplied later are stored with Git LFS.

@@ -1,0 +1,7 @@
+# Personal photos and original 360craft outputs/outline: local regression data only.
+# Never commit these; the repo will be made public. See docs/adr/0002.
+/photo examples/
+
+node_modules/
+test-output/
+.DS_Store
