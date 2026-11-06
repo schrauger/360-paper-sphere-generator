@@ -159,7 +159,47 @@ edge error on prints, near the tip curls.
 
 ## Tabs
 
-(T7 appends.)
+`tools/research/measure-tabs.mjs` measured 360craft's glue tabs on `outline.dxf` at the fitted model.
+A DXF vertex more than 3 px from the model seam is a tab vertex (ruling R21: the tip-curl bulge
+reaches 2.2 px, so a 2 px cut would turn bulge vertices into tabs). Runs of such vertices are
+tabs: 100 in all, 25 on each seam of each piece, both pieces alike. Values are in
+`MODEL_360CRAFT.tabs`.
+
+**Position.** Tab bases sit at σ = start + k·pitch, with σ the arc length from the north tip along
+the seam, and are kept while σ + length ≤ the seam length (that rule gives the measured 25 per seam).
+- On the sphere (σ = the centre line's s): pitch 0.50446 R, length 0.23737 R, startPos 0.26396,
+  startNeg 0.01369. σ residual rms 0.67 px, max 1.94 px.
+- In the flat: rms 1.46 px, max 5.11 px, and the rule gives 24 tabs per seam, not 25.
+- So `along = 'sphere'`: 360craft spaces its tabs by arc length on the sphere. The seam is 1.034×
+  longer in the flat in the body, so flat tab bases are 0.245 R long there.
+- The + and − starts differ by about half a pitch (0.2503 against 0.2522), so tabs on the two seams
+  that meet (band 0's + seam, band 1's − seam) alternate, with a bare gap of 0.013–0.017 R between
+  neighbours.
+
+**Shape.** The plan's quadrilateral (outer edge inset from the base ends) does not fit: every tab has
+three outer vertices. In the frame of its base chord A→B (x along the chord from A, y along the
+outward normal, outline order: + seam forward, − seam backward), as fractions of the chord length:
+
+| seam | vertex 1 | vertex 2 | vertex 3 |
+|---|---|---|---|
+| + | A + (−0.151, 0.302) | B + (−0.100, 0.302) | B + (0.150, 0.152) |
+| − | A + (−0.001, 0.305) | B + (0.000, 0.305) | B + (0.150, 0.155) |
+
+The shape scales with the chord: in the two tip curls the chord is 0.84 of its length in the body and
+the tab shrinks with it. A shape constant in R misses those two tabs by up to 7 px. The chord model's
+vertex error over all 100 tabs is rms 0.73 px, max 2.24 px. Heights vary by a few percent along the
+seam beyond that (the + seam's tabs are 0.4% lower than its − seam's); this is not modelled.
+
+**Whole outline.** Cut path (edge + tabs) against `outline.dxf`, both directions, ours and the
+DXF sampled every 0.5 px, per piece: mean 0.51–0.55 px, p95 1.71–1.80 px, max 2.74–3.10 px. The
+tabs add no error beyond the seam's: the seam part alone measures p95 ≈ 2.0 and max ≈ 3.0 px with
+this dense sampling. That is the tip-curl bulge again, now seen over the whole outline instead of
+raw vertices, and why the shape test (`test/regression/shape.test.js`) keeps ruling R20's mean
+(≤ 0.75 px) but limits p95 to 2.0 px and max to 3.3 px instead of 1.5 and 2.5. Cost if wrong: the
+same ≤ 3 px (0.6% of R, about 0.25 mm on the low sheet) of edge error at the tip curls as in the fit.
+
+Tabs are built in the flat plane: the chart is only valid about 0.036 R past the edge, and tabs
+reach 0.075 R. Each outer vertex is placed from the flat seam polyline and its outward normal.
 
 ## Style
 

@@ -20,7 +20,29 @@ export const MODEL_360CRAFT = {
       { band: 0, x: 2132.96, y: 563.85, angleDeg: 118.109 },
     ],
   },
-  // tabs: added by T7; style: added by T10
+  // Glue tabs. measure-tabs.mjs on outline.dxf at the fitted model (100 tabs, 50 per seam).
+  // Base positions fit a uniform pitch along the seam's arc length ON THE SPHERE (σ rms 0.67
+  // px; along the flat seam it is 1.46 px, max 5.1 px). pitch, length, startPos and startNeg
+  // are in R; a tab sits at σ = start + k·pitch (σ from the north tip) and is kept while
+  // σ + length ≤ the seam length. Each tab is a pentagon, not the plan's quadrilateral: its
+  // base A→B along the seam (outline order: pos seam forward, neg seam backward) and three
+  // outer vertices [anchor, dx, h]: lerp(A, B, anchor) + (dx·t + h·n)·|AB|, t the unit chord
+  // direction and n the outward flat normal. The shape scales with the chord, which shrinks to
+  // 0.84 of its body length in the two tip curls (vertex error rms 0.73 px, max 2.24 px; a shape
+  // constant in R has max 7 px there). Pos and neg tabs differ in shape, and their starts are
+  // half a pitch apart, so tabs on mating seams never overlap.
+  tabs: {
+    along: 'sphere',
+    pitch: 0.50446,
+    length: 0.23737,
+    startPos: 0.26396,
+    startNeg: 0.01369,
+    outer: {
+      pos: [[0, -0.1508, 0.302], [1, -0.0999, 0.3018], [1, 0.1503, 0.1517]],
+      neg: [[0, -0.0009, 0.3049], [1, 0.0001, 0.3047], [1, 0.1502, 0.1545]],
+    },
+  },
+  // style: added by T10
 };
 
 /**
