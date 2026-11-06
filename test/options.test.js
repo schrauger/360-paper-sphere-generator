@@ -6,7 +6,7 @@ test('defaults', () => {
   assert.deepEqual(normalizeOptions({}), {
     preset: null,
     page: { widthMm: 215.9, heightMm: 279.4 },
-    dpi: 300,
+    dpi: 600,
     diameterMm: null,
     marginMm: 6.35,
     outline: true,
@@ -21,6 +21,7 @@ test('defaults', () => {
   });
   assert.deepEqual(normalizeOptions(), normalizeOptions({}));
   assert.deepEqual(PAGE_SIZES.a4, [210, 297]);
+  assert.deepEqual(PAGE_SIZES['8x10'], [203.2, 254]);
 });
 
 test('custom page "200x300mm", named pages, and string numbers', () => {

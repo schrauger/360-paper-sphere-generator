@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How to print and cut - Paper sphere</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="ruler">
+    <h1>Paper sphere</h1>
+    <p><a class="back" href="index.html">Back to the app</a></p>
+  </header>
+
+  <main class="paper guide">
+    <h2>Print</h2>
+    <p>Print the PDF at 100% ("Actual size", not "Fit to page") on cardstock or photo paper. Scaling moves the pieces and the cutter marks.</p>
+
+    <h2>Cut outline</h2>
+    <p>The thin printed line around each piece is a guide for cutting by hand with scissors or a craft knife.</p>
+    <p>With a cutting machine you don't need it. Turn <strong>Cut outline</strong> off: the machine cuts from the cut file, and a printed line can show at the edge if the cut is a hair off.</p>
+
+    <h2>Cutting machine: Silhouette, SVG cut file</h2>
+    <p>Silhouette Studio opens SVG files only in Designer Edition or higher (Designer, Designer Plus, Business). The free Basic Edition can't open SVG, but it opens the DXF cut file and .studio3 files.</p>
+    <ol>
+      <li>In the app, set <strong>Cutter marks</strong> to Silhouette and <strong>Cut file download</strong> to SVG.</li>
+      <li>Download the sheet (the PDF) and the SVG cut file.</li>
+      <li>Print the PDF at 100% (Actual size).</li>
+      <li>Open the SVG in Silhouette Studio.</li>
+      <li>Select all the SVG objects and Group them.</li>
+      <li>In the Transform panel, set the group's position to X 9.75 mm and Y 9.75 mm. The group's top-left corner is the outer edge of the SVG's black registration marks, which sit 9.75 mm in from the page edge, where Silhouette Studio prints its own marks at a 10 mm inset.</li>
+      <li>Turn on registration marks and set the inset to 10 mm (in the page setup / registration marks settings).</li>
+      <li>Load the printed sheet into the machine and cut.</li>
+    </ol>
+
+    <h2>Silhouette .studio3 files</h2>
+    <p>For Letter paper, the listed sphere sizes and "As many as fit", choose <strong>.studio3 (Silhouette)</strong> as the cut file. The app sets the cutter marks and sphere count for you and flags any setting that doesn't fit. Open the file in Silhouette Studio, load the printed sheet and cut. No positioning is needed. The files are being added size by size; until a size has one, the app says so and you can use the SVG cut file instead.</p>
+
+    <h2>Ties and DXF</h2>
+    <p>Ties are optional small bridges that keep the tabs attached on the mat, so you can pop the pieces out afterwards. DXF is the cut file for programs that don't read SVG, including Silhouette Studio Basic Edition.</p>
+
+    <p><a class="back" href="index.html">Back to the app</a></p>
+  </main>
+
+  <footer class="foot">
+    <p><a href="https://github.com/schrauger/360-paper-sphere-generator">GitHub</a></p>
+  </footer>
+</body>
+</html>

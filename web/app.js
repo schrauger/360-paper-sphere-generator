@@ -7,7 +7,7 @@ import { totalRotation } from '../src/render/warp.js';
 import { apply, equirectToDirection } from '../src/sphere/orient.js';
 import { dragPhoto, orbitView, rollPhoto, userYPR } from '../src/interact/drag.js';
 import { cliCommandFor, formToOptions } from './form.js';
-import { SILHOUETTE_PRESETS, studio3Path } from '../src/layout/silhouette-presets.js';
+import { SILHOUETTE_PRESETS, DIAMETER_CHOICES_MM, studio3Path, studio3Problems } from '../src/layout/silhouette-presets.js';
 
 const $ = (id) => document.getElementById(id);
 const form = $('options');
@@ -56,28 +56,67 @@ let savedMargin = null; // the user's margin while Silhouette marks force 10 mm
 
 // ---- Silhouette preset sizes ---------------------------------------------------------------
 
-const presetOptions = SILHOUETTE_PRESETS.letter.map((mm) => Object.assign(document.createElement('option'), {
-  value: `preset-${mm}`, textContent: `${mm} mm · Silhouette cut file`,
-}));
 const isPresetMode = (mode) => mode.startsWith('preset-');
 
-/** Preset diameters are offered only for Letter + Silhouette marks (and no 360craft preset); otherwise they are removed and a chosen preset size becomes the same size as a Custom diameter. */
-function syncPresetChoices(presetSheet) {
-  const select = $('diameterMode');
-  const offer = !presetSheet && $('page').value === 'letter' && $('marks').value === 'silhouette';
-  const listed = presetOptions[0].parentNode === select;
-  if (offer && !listed) select.append(...presetOptions);
-  else if (!offer && listed) {
-    const chosen = isPresetMode(select.value) ? select.value.slice('preset-'.length) : null;
-    presetOptions.forEach((o) => o.remove());
-    if (chosen) {
-      select.value = 'custom';
-      $('diameter').value = chosen;
-    }
+// The fixed diameters, offered for every page. "Largest" stays first and "Custom…" last.
+for (const mm of DIAMETER_CHOICES_MM) {
+  $('diameterMode').insertBefore(Object.assign(document.createElement('option'), { value: `preset-${mm}`, textContent: `${mm} mm` }), $('diameterMode').querySelector('[value=custom]'));
+}
+
+/** The chosen diameter in mm: a fixed size or a Custom number, else null (Largest, or nothing valid typed). */
+function chosenDiameter() {
+  const mode = $('diameterMode').value;
+  if (isPresetMode(mode)) return Number(mode.slice('preset-'.length));
+  if (mode !== 'custom') return null;
+  const v = Number($('diameter').value);
+  return $('diameter').value.trim() !== '' && Number.isFinite(v) ? v : null;
+}
+
+const listMm = (sizes) => `${sizes.slice(0, -1).join(', ')} or ${sizes.at(-1)}`;
+const pageLabel = (value) => $('page').querySelector(`[value="${value}"]`).textContent.replace(/ \(.*\)$/, '');
+
+/** The Silhouette problems for the current form, as field names (empty unless .studio3 is chosen). */
+function currentProblems() {
+  if ($('cutFile').value !== 'studio3') return [];
+  return studio3Problems({ pageName: $('page').value, diameterMm: chosenDiameter(), copies: $('copies').disabled ? 'max' : $('copies').value, marks: $('marks').value });
+}
+
+/** Colour the page and diameter items, flag the offending fields and explain; all cleared unless .studio3 is chosen. */
+function syncStudio3Validation() {
+  const on = $('cutFile').value === 'studio3';
+  const problems = currentProblems();
+  const page = $('page').value;
+  const pageSizes = SILHOUETTE_PRESETS[page] ?? [];
+  for (const o of $('page').options) {
+    const ok = o.value in SILHOUETTE_PRESETS;
+    o.classList.toggle('avail', on && ok);
+    o.classList.toggle('unavail', on && !ok);
+    o.title = on ? (ok ? 'Has Silhouette cut files' : 'No Silhouette cut files for this page') : '';
   }
-  const preset = isPresetMode(select.value);
-  $('studio3-option').disabled = !preset;
-  if (!preset && $('cutFile').value === 'studio3') $('cutFile').value = '';
+  for (const o of $('diameterMode').options) {
+    const mm = isPresetMode(o.value) ? Number(o.value.slice('preset-'.length)) : null;
+    const colour = on && mm !== null;
+    const ok = colour && pageSizes.includes(mm);
+    o.classList.toggle('avail', ok);
+    o.classList.toggle('unavail', colour && !ok);
+    o.title = colour ? (ok ? 'Has a Silhouette cut file' : 'No Silhouette cut file for this size on this page') : '';
+  }
+  $('page').classList.toggle('incompatible', problems.includes('page'));
+  $('diameterMode').classList.toggle('incompatible', problems.includes('diameter'));
+  $('diameter').classList.toggle('incompatible', problems.includes('diameter'));
+  $('copies').classList.toggle('incompatible', problems.includes('copies'));
+  document.querySelector('.seg').classList.toggle('incompatible', problems.includes('marks'));
+  const messages = [];
+  if (problems.includes('page') || problems.includes('diameter')) {
+    const pages = Object.keys(SILHOUETTE_PRESETS).map(pageLabel).join(' or ');
+    messages.push(`Silhouette cut files are made in advance for set sizes only, so custom sizes don't work. Choose ${pages} and one of ${listMm(DIAMETER_CHOICES_MM)} mm.`);
+  }
+  if (problems.includes('copies')) {
+    messages.push('Silhouette cut files are made in advance and don\'t work with custom sphere diameters or spheres per sheet. Choose "As many as fit".');
+  }
+  if (problems.includes('marks')) messages.push('Silhouette cut files need Silhouette cutter marks.');
+  $('studio3-problem').textContent = messages.join('\n');
+  $('studio3-problem').hidden = messages.length === 0;
 }
 
 const studio3Exists = new Map(); // repo-relative path → Promise<boolean>
@@ -93,21 +132,14 @@ let studio3Token = 0;
 /** Beside the sheet download: a link to the committed .studio3 for the chosen preset, or a note that it is not available yet. */
 async function showStudio3() {
   const status = $('studio3-status');
-  const mode = $('diameterMode').value;
-  const wanted = $('cutFile').value === 'studio3' && isPresetMode(mode);
+  const wanted = $('cutFile').value === 'studio3' && currentProblems().length === 0;
   const token = ++studio3Token;
   if (!wanted) {
     status.hidden = true;
     status.replaceChildren();
     return;
   }
-  if ($('copies').value !== 'max') {
-    // The committed files are made with the maximum number of spheres per sheet.
-    status.textContent = 'The Silhouette cut file matches "As many as fit" only; the SVG and DXF cut files work with any count.';
-    status.hidden = false;
-    return;
-  }
-  const path = studio3Path('letter', Number(mode.slice('preset-'.length)));
+  const path = studio3Path($('page').value, chosenDiameter());
   const exists = await hasStudio3(path);
   if (token !== studio3Token) return;
   if (exists) {
@@ -122,18 +154,16 @@ async function showStudio3() {
 }
 
 function syncFormState() {
-  const preset = $('preset').value !== '';
   const silhouette = $('marks').value === 'silhouette';
-  syncPresetChoices(preset);
-  for (const id of ['page', 'pageWidth', 'pageHeight', 'diameterMode', 'diameter']) $(id).disabled = preset;
   for (const button of document.querySelectorAll('[data-marks]')) {
-    button.disabled = preset;
     button.setAttribute('aria-pressed', String(button.dataset.marks === $('marks').value));
   }
-  toggleField('custom-page', ['pageWidth', 'pageHeight'], $('page').value === 'custom' && !preset);
-  toggleField('custom-diameter', ['diameter'], $('diameterMode').value === 'custom' && !preset);
+  toggleField('custom-page', ['pageUnit', 'pageWidth', 'pageHeight'], $('page').value === 'custom');
+  $('pageWidth-label').textContent = `Width (${$('pageUnit').value})`;
+  $('pageHeight-label').textContent = `Height (${$('pageUnit').value})`;
+  toggleField('custom-diameter', ['diameter'], $('diameterMode').value === 'custom');
   // Spheres per sheet matters only with a chosen diameter (Largest is always one pair).
-  toggleField('copies-field', ['copies'], $('diameterMode').value !== 'largest' && !preset);
+  toggleField('copies-field', ['copies'], $('diameterMode').value !== 'largest');
   toggleField('custom-bleed', ['bleedMm'], $('bleedMode').value === 'mm');
   toggleField('custom-dpi', ['dpiCustom'], $('dpi').value === 'custom');
   const cutting = ['svg', 'dxf'].includes($('cutFile').value);
@@ -141,18 +171,17 @@ function syncFormState() {
   $('ties-field').hidden = !cutting;
   toggleField('custom-tie', ['tieWidth'], cutting && $('ties').checked);
   toggleField('custom-quality', ['quality'], $('format').value === 'jpg');
-  // Silhouette marks ignore the margin (10 mm); a preset ignores it too. Show that instead of the typed value.
-  const marginFixed = silhouette || preset;
-  if (silhouette && !preset && savedMargin === null) {
+  // Silhouette marks ignore the margin (10 mm). Show that instead of the typed value.
+  if (silhouette && savedMargin === null) {
     savedMargin = $('margin').value;
     $('margin').value = '10';
-  } else if (!(silhouette && !preset) && savedMargin !== null) {
+  } else if (!silhouette && savedMargin !== null) {
     $('margin').value = savedMargin;
     savedMargin = null;
   }
-  $('margin').disabled = marginFixed;
-  $('margin-hint').hidden = !(silhouette && !preset);
-  $('preset-hint').hidden = !preset;
+  $('margin').disabled = silhouette;
+  $('margin-hint').hidden = !silhouette;
+  syncStudio3Validation();
 }
 
 function updateCliText() {
@@ -337,9 +366,27 @@ drop.addEventListener('drop', (e) => {
   loadFile(e.dataTransfer.files[0]);
 });
 
+let pageUnit = $('pageUnit').value; // the browser may restore 'in' on reload
+/** Switching the custom page's unit converts the shown width and height (0.01 in / 0.1 mm). */
+function convertPageUnit() {
+  const next = $('pageUnit').value;
+  if (next === pageUnit) return;
+  for (const id of ['pageWidth', 'pageHeight']) {
+    const v = Number($(id).value);
+    if ($(id).value.trim() === '' || !Number.isFinite(v)) continue;
+    $(id).value = String(next === 'in' ? Math.round((v / 25.4) * 100) / 100 : Math.round(v * 25.4 * 10) / 10);
+  }
+  pageUnit = next;
+}
+
 form.addEventListener('input', (e) => {
+  if (e.target.id === 'pageUnit') convertPageUnit();
   if (e.target.id === 'diameterMode' && e.target.value === 'custom' && !$('diameter').value && lastDiameter) {
     $('diameter').value = String(Number(lastDiameter.toFixed(1)));
+  }
+  if (e.target.id === 'cutFile' && e.target.value === 'studio3') {
+    $('marks').value = 'silhouette';
+    $('copies').value = 'max';
   }
   syncFormState();
   updateCliText();
@@ -487,16 +534,17 @@ $('render').addEventListener('click', () => {
   downloadUrls.forEach((u) => URL.revokeObjectURL(u));
   downloadUrls = [];
   $('info').textContent = 'Rendering the full-resolution sheet…';
+  pendingStudio3 = studio3Choice(); // decided now, so a form change during the render can't pair the sheet with another size's file
   worker.postMessage({ type: 'render', options });
 });
 
 let downloadUrls = [];
+let pendingStudio3 = Promise.resolve(null);
 
 /** { url, name } of the chosen preset's .studio3 when ".studio3 (Silhouette)" is chosen and the file exists, else null. */
 async function studio3Choice() {
-  const mode = $('diameterMode').value;
-  if ($('cutFile').value !== 'studio3' || !isPresetMode(mode) || $('copies').value !== 'max') return null;
-  const path = studio3Path('letter', Number(mode.slice('preset-'.length)));
+  if ($('cutFile').value !== 'studio3' || currentProblems().length) return null;
+  const path = studio3Path($('page').value, chosenDiameter());
   if (!(await hasStudio3(path))) return null;
   return { url: new URL(`../${path}`, import.meta.url).href, name: path.split('/').pop() };
 }
@@ -527,7 +575,7 @@ async function finishRender({ blob, format, cutFile, diameterMm, copies, warning
   const base = fileName.replace(/\.[^./\\]+$/, '') || 'panorama';
   if (!FORMATS.has(format)) throw new Error(`Unexpected sheet format ${format || '(none)'}`);
   const links = [download(blob, `${base}-sheet.${format}`)];
-  const studio3 = await studio3Choice();
+  const studio3 = await pendingStudio3;
   if (cutFile) {
     const type = cutFile.type === 'svg' ? 'image/svg+xml' : 'application/dxf';
     links.push(download(new Blob([cutFile.content], { type }), `${base}-sheet.${cutFile.type}`));

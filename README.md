@@ -31,11 +31,19 @@ Use it in the browser, with no install: **https://sphere.schrauger.com/**. The p
 machine. To run it locally, `npm run serve` and open http://localhost:8080/web/. The sheet downloads as a
 PDF by default; print it at 100% (actual size, no "fit to page") so the marks line up with the cutter.
 
+### Printing and cutting
+
+See the [print and cut guide](https://sphere.schrauger.com/web/guide.html) ([source](web/guide.html)). In short:
+
+- Print the PDF at 100% (actual size, no "fit to page").
+- The printed cut outline is for cutting by hand. With a cutting machine, turn **Cut outline** off: the machine cuts from the cut file, and a printed line shows if the cut is slightly off.
+- Silhouette Studio opens SVG only in Designer Edition or higher; the free Basic Edition opens DXF and `.studio3`. For an SVG: choose Cutter marks Silhouette, open the SVG, select all objects, Group them, set the position to X 9.75 mm and Y 9.75 mm (the outer edge of the black marks), and turn on registration marks with the inset at 10 mm.
+
 ## CLI quick start
 
 ```sh
 npm install
-node cli.js panorama.jpg -o sheet.pdf                         # letter page, 300 dpi, prints at 100%
+node cli.js panorama.jpg -o sheet.pdf                         # letter page, 600 dpi, prints at 100%
 node cli.js panorama.jpg -o sheet.png
 node cli.js panorama.jpg -o sheet.png --page a4 --bleed auto --marks silhouette
 node cli.js panorama.jpg -o sheet.jpg --yaw 30 --cut-file svg # also writes sheet.svg
@@ -48,8 +56,8 @@ anything else is an error.
 |---|---|
 | `-o <file>` | Output, `.pdf` (prints at 100%), `.png`, `.jpg` or `.jpeg` (required). |
 | `--preset original-low\|original-high` | 360craft's own sheet sizes (2850×4160 and 5700×8320 px). Ignores `--page`, `--diameter` and `--marks`. |
-| `--page letter\|a4\|a3\|tabloid\|<W>x<H>mm` | Page size (default `letter`). |
-| `--dpi N` | 72–1200 (default 300). |
+| `--page letter\|a4\|a3\|tabloid\|8x10\|<W>x<H>mm` | Page size (default `letter`). |
+| `--dpi N` | 72–1200 (default 600). |
 | `--diameter MM` | Sphere diameter (default: the largest that fits the page). |
 | `--copies max\|N` | Spheres per sheet, with `--diameter` (default `max`: as many pairs as fit in a grid, up to 60 (a heuristic, not a proven maximum); the largest-that-fits size is always one pair). A pair may be turned 90° and neighbouring pairs nest, keeping their cut lines 3 mm apart. `N` (1–60) places exactly N, enlarging the sheet (with a warning) if they do not fit. |
 | `--margin MM` | Margin around the sheet (default 6.35). Ignored with `--marks silhouette`, which uses 10 mm. |
@@ -64,8 +72,11 @@ anything else is an error.
 
 ### Silhouette print & cut
 
-Choose Letter, Silhouette marks and one of the preset sphere sizes in the web app, then download the
-sheet (a PDF) and the matching `.studio3` cut file beside it. Print the PDF at 100% (no scaling or
+Choose Letter, one of the listed sphere sizes (40, 45, 50, 55, 60 or 62 mm), Silhouette cutter marks and
+"As many as fit" in the web app, set Cut file download to `.studio3`, then download the
+sheet (a PDF) and the matching `.studio3` cut file beside it. Choosing `.studio3` sets the marks and
+spheres per sheet for you; any other page, size or count is flagged in red and the cut file is not
+offered (the sheet still downloads). Print the PDF at 100% (no scaling or
 fit to page), open the `.studio3` in Silhouette Studio, load the printed sheet and cut. The files
 live in [`studio3/`](studio3/README.md) and are added size by size as they are made (none exist yet); if
 one is missing for a size, the web app says so and you can use the SVG cut file instead.
