@@ -10,7 +10,7 @@ import { rgbFromRgba, sheetPdf } from './src/export/pdf.js';
 
 const USAGE = `Usage: paper-sphere <input> -o <out.pdf|out.png|out.jpg> [options]
   --preset original-low|original-high   360craft's own sheet sizes (ignores --page, --diameter, --marks)
-  --page letter|a4|a3|tabloid|<W>x<H>mm   page size (default letter)
+  --page letter|a4|a3|tabloid|8x10|<W>x<H>mm   page size (default letter)
   --dpi N                               72–1200 (default 600)
   --diameter MM                         sphere diameter (default: largest that fits)
   --copies max|N                        spheres per sheet with --diameter: as many as fit (default) or exactly N
