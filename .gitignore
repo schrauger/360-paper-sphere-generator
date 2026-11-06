@@ -5,3 +5,4 @@
 node_modules/
 test-output/
 .DS_Store
+__pycache__/

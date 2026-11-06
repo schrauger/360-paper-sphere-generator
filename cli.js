@@ -1,0 +1,118 @@
+#!/usr/bin/env node
+// paper-sphere: turn an equirectangular panorama into a printable paper-sphere sheet.
+import { parseArgs } from 'node:util';
+import { writeFile } from 'node:fs/promises';
+import sharp from 'sharp';
+import { OptionError, checkAspect, normalizeOptions } from './src/options.js';
+import { renderSheet } from './src/pipeline.js';
+
+const USAGE = `Usage: paper-sphere <input> -o <out.png|out.jpg> [options]
+  --preset original-low|original-high   360craft's own sheet sizes (ignores --page, --diameter, --marks)
+  --page letter|a4|a3|tabloid|<W>x<H>mm   page size (default letter)
+  --dpi N                               72–1200 (default 300)
+  --diameter MM                         sphere diameter (default: largest that fits)
+  --margin MM                           margin around the sheet (default 6.35)
+  --outline | --no-outline              cut outline (default on)
+  --bleed MM|auto|off                   image bleed past the cut line (default off)
+  --marks silhouette                    Silhouette registration marks
+  --yaw D --pitch D --roll D            panorama orientation in degrees
+  --cut-file svg|dxf                    also write <out>.svg / <out>.dxf
+  --quality Q                           JPEG quality 1–100 (default 92)`;
+
+const OPTIONS = {
+  output: { type: 'string', short: 'o' },
+  preset: { type: 'string' }, page: { type: 'string' }, dpi: { type: 'string' }, diameter: { type: 'string' },
+  margin: { type: 'string' },
+  outline: { type: 'boolean' }, 'no-outline': { type: 'boolean' },
+  bleed: { type: 'string' }, marks: { type: 'string' },
+  yaw: { type: 'string' }, pitch: { type: 'string' }, roll: { type: 'string' },
+  'cut-file': { type: 'string' }, quality: { type: 'string' },
+  help: { type: 'boolean', short: 'h' },
+};
+
+// node:util parseArgs reads `--pitch -20` as an ambiguous option, so a negative value would be rejected.
+// Merge `--name` with a following numeric token into `--name=<value>` for every value-taking option.
+function joinNegativeValues(argv) {
+  const out = [];
+  for (let i = 0; i < argv.length; i++) {
+    const token = argv[i];
+    const next = argv[i + 1];
+    const name = /^--([^=]+)$/.exec(token)?.[1];
+    const takesValue = name !== undefined && OPTIONS[name]?.type === 'string';
+    if (takesValue && next !== undefined && next.trim() !== '' && Number.isFinite(Number(next))) {
+      out.push(`${token}=${next}`);
+      i++;
+    } else {
+      out.push(token);
+    }
+  }
+  return out;
+}
+
+const { values, positionals } = (() => {
+  try {
+    return parseArgs({ args: joinNegativeValues(process.argv.slice(2)), allowPositionals: true, options: OPTIONS });
+  } catch (e) {
+    return fail(e.message);
+  }
+})();
+
+function fail(message) {
+  console.error(message);
+  process.exit(2);
+}
+
+async function main() {
+  if (values.help) {
+    console.log(USAGE);
+    return;
+  }
+  const [input] = positionals;
+  if (!input || positionals.length > 1 || !values.output) fail(USAGE);
+  const out = values.output;
+  const ext = /\.([^./\\]+)$/.exec(out)?.[1].toLowerCase();
+  if (!['png', 'jpg', 'jpeg'].includes(ext)) fail('Output must be a .png, .jpg or .jpeg file (-o)');
+  const options = normalizeOptions({
+    preset: values.preset,
+    page: values.page,
+    dpi: values.dpi,
+    diameterMm: values.diameter,
+    marginMm: values.margin,
+    outline: values['no-outline'] ? false : values.outline,
+    bleed: values.bleed,
+    marks: values.marks,
+    orientation: { yaw: values.yaw, pitch: values.pitch, roll: values.roll },
+    format: ext === 'png' ? 'png' : 'jpg',
+    jpegQuality: values.quality,
+    cutFile: values['cut-file'],
+  });
+
+  const decode = (size) => {
+    let img = sharp(input).toColourspace('srgb').flatten({ background: '#fff' }).ensureAlpha();
+    if (size) img = img.resize(size.width, size.height, { fit: 'fill' });
+    return img.raw().toBuffer({ resolveWithObject: true });
+  };
+  let { data, info } = await decode().catch((e) => fail(`Cannot read ${input}: ${e.message}`));
+  const aspect = checkAspect(info.width, info.height);
+  if (!aspect.ok) fail(aspect.message);
+  if (aspect.width !== info.width || aspect.height !== info.height) ({ data, info } = await decode(aspect));
+  const pano = { width: info.width, height: info.height, data: new Uint8ClampedArray(data.buffer, data.byteOffset, data.length) };
+
+  const { image, warnings, diameterMm, cutFile } = renderSheet(pano, options);
+  const sheet = sharp(Buffer.from(image.data.buffer, image.data.byteOffset, image.data.length), {
+    raw: { width: image.width, height: image.height, channels: 4 },
+  }).removeAlpha().withMetadata({ density: options.dpi });
+  await (options.format === 'png' ? sheet.png() : sheet.jpeg({ quality: options.jpegQuality })).toFile(out);
+  if (cutFile) await writeFile(out.replace(/\.[^./\\]+$/, `.${cutFile.type}`), cutFile.content);
+  console.error(`Sphere diameter: ${diameterMm.toFixed(1)} mm`);
+  for (const w of warnings) console.error(w);
+}
+
+main().catch((e) => {
+  // Never a stack trace: the message only. Bad options and the layout's RangeErrors (page too small,
+  // sheet too large, …) exit 2; anything else (unwritable output, encoder failure, …) exits 1.
+  const message = e instanceof Error ? e.message : String(e);
+  if (e instanceof OptionError || e instanceof RangeError) fail(message);
+  console.error(message);
+  process.exit(1);
+});
