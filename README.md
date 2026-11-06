@@ -29,3 +29,7 @@ then open http://localhost:8080/web/ in a browser.
 ## Requirements
 
 The package supports Node ≥ 20, but tests need Node ≥ 22 (`npm test` uses a glob that Node 20 cannot expand).
+
+## License
+
+Copyright (C) 2026 schrauger. Licensed under the GNU Affero General Public License v3.0 or later; see [LICENSE](LICENSE).
