@@ -115,7 +115,7 @@ function syncStudio3Validation() {
     messages.push('Silhouette cut files are made in advance and don\'t work with custom sphere diameters or spheres per sheet. Choose "As many as fit".');
   }
   if (problems.includes('marks')) messages.push('Silhouette cut files need Silhouette cutter marks.');
-  $('studio3-problem').textContent = messages.join(' ');
+  $('studio3-problem').textContent = messages.join('\n');
   $('studio3-problem').hidden = messages.length === 0;
 }
 

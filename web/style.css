@@ -115,7 +115,7 @@ input[type=checkbox] { width: 1.15rem; height: 1.15rem; accent-color: var(--mat)
 .seg.incompatible button[aria-pressed=true] { background: var(--error); }
 option.avail { background: #e3f3e8; color: #14502f; }
 option.unavail { background: #eceae6; color: #8a1f15; }
-.incompatible-note { margin: .5rem 0 0; padding: .4rem .6rem; border-left: 3px solid var(--error); background: #fbe9e6; color: var(--error); font-size: .92rem; }
+.incompatible-note { margin: .5rem 0 0; padding: .4rem .6rem; border-left: 3px solid var(--error); background: #fbe9e6; color: var(--error); font-size: .92rem; white-space: pre-line; }
 .incompatible-note[hidden] { display: none; }
 .hint { font-size: .88rem; color: var(--muted); margin: .4rem 0 0; }
 .meta { font-size: .92rem; color: var(--muted); margin: .5rem 0 0; min-height: 1.4em; }
