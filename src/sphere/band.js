@@ -51,27 +51,36 @@ const cross = (a, b) => [
 
 /**
  * Centre line of band 0 from pole to pole, parameterised by arc length s.
- * Arc length is a Simpson-integrated table over a uniform θ grid, linearly
- * interpolated. C, T and kg are all analytic.
+ * Arc length is a Simpson-integrated table over a uniform θ grid, interpolated
+ * by cubic Hermite with the analytic slopes ds/dθ = |dC/dθ| (and dθ/ds = 1/|dC/dθ|
+ * the other way), so |dC/ds| = 1 to ~1e-10, not just at the nodes. C, T and kg
+ * are all analytic.
  */
 export function makeCentreLine(spiral, { samples = 20000 } = {}) {
   const n = samples % 2 === 0 ? samples : samples + 1; // Simpson needs even intervals
   const h = Math.PI / n;
   const table = new Float64Array(n + 1); // table[i] = s at θ = i·h
-  let prevF = speed(spiral, 0);
+  const rate = new Float64Array(n + 1); // rate[i] = ds/dθ at θ = i·h
+  rate[0] = speed(spiral, 0);
   for (let i = 1; i <= n; i++) {
     const a = (i - 1) * h;
     const mid = speed(spiral, a + h / 2);
-    const f = speed(spiral, i * h);
-    table[i] = table[i - 1] + ((prevF + 4 * mid + f) * h) / 6;
-    prevF = f;
+    rate[i] = speed(spiral, i * h);
+    table[i] = table[i - 1] + ((rate[i - 1] + 4 * mid + rate[i]) * h) / 6;
   }
   const length = table[n];
+
+  // Cubic Hermite on [0, 1] with end values a, b and end slopes da, db.
+  const hermite = (u, a, b, da, db) => {
+    const u2 = u * u;
+    const u3 = u2 * u;
+    return (2 * u3 - 3 * u2 + 1) * a + (u3 - 2 * u2 + u) * da + (3 * u2 - 2 * u3) * b + (u3 - u2) * db;
+  };
 
   function sOfTheta(theta) {
     const x = Math.min(Math.max(theta, 0), Math.PI) / h;
     const i = Math.min(Math.floor(x), n - 1);
-    return table[i] + (x - i) * (table[i + 1] - table[i]);
+    return hermite(x - i, table[i], table[i + 1], rate[i] * h, rate[i + 1] * h);
   }
 
   function thetaAt(s) {
@@ -84,7 +93,8 @@ export function makeCentreLine(spiral, { samples = 20000 } = {}) {
       else hi = m;
     }
     const span = table[lo + 1] - table[lo];
-    return (lo + (span > 0 ? (q - table[lo]) / span : 0)) * h;
+    if (!(span > 0)) return lo * h;
+    return hermite((q - table[lo]) / span, lo * h, (lo + 1) * h, span / rate[lo], span / rate[lo + 1]);
   }
 
   const tangent = (t) => {
