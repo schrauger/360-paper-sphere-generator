@@ -103,6 +103,11 @@ All figures are in low-res px. "Seam vertices" are DXF vertices within 2 px of a
 |---|---|---|---|---|
 | strip at flat offset d (first fit, rejected) | 0.83 / 1.98 | 0.82 / – / 2.00 | 1.53 | 0.51 |
 | **strip at tan d (this model)** | **0.31 / 0.69** | **0.55 / 1.39 / 2.00** | 0.47 | 0.68 |
+| same, outline resampled every 1 px | – | 0.55 / 1.72 / 2.00 | 0.50 | 0.84 |
+
+The seam columns are over raw DXF vertices, the measure the plan and R16 name. That measure is
+biased low: about 100 DXF vertices pile up within 1 px of each tip point and fit well, while
+straight edges carry few vertices. The resampled row weights the outline by length instead.
 
 **Why tan d.** The first fit laid strip points at c(s) + d·n(s). Its residuals showed two things:
 - 360craft's outline is 5.7 px wider than that model, constantly along the body.
@@ -141,6 +146,12 @@ The model is accepted under ruling R16's fallback, applied to the same seam vert
 - correspondence median ≤ 1.0 px (0.31);
 - seam mean ≤ 0.75 px (0.55);
 - seam p95 ≤ 1.5 px (1.39).
+
+**Caveat (ruling R19).** The p95 is measured on raw DXF vertices, as the plan and R16 specify.
+That statistic is flattered by the ~100 vertices piled at each tip. On the outline resampled
+every 1 px the seam p95 is 1.72 px, which would fail 1.5. For scale, the largest residual,
+≤ 2.2 px on the low sheet at about 492 px per R, is ≈ 0.0045 R: about 0.2 mm on a sphere of
+10 cm diameter.
 
 `test/regression/model-fit.test.js` checks these thresholds, together with the plan's alaska
 reprojection test (median ≤ 1.0 px, p90 ≤ 2.5 px). Cost if this is wrong: up to about 2 px of

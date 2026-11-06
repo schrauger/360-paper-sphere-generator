@@ -14,7 +14,7 @@ import { dxfToPolylines, readDxfLines } from '../support/dxf.js';
 const MATCHES = 'test-output/research/alaska.matches.json';
 const manifest = loadManifest();
 const skipMatches = !manifest ? SKIP_LOCAL : !existsSync(MATCHES) && 'run tools/research/correspond.py --fixture alaska';
-const skipDxf = !manifest && SKIP_LOCAL;
+const skipDxf = (!manifest || !existsSync(manifest.dxfPath)) && SKIP_LOCAL;
 
 const { spiral: spiralCfg, baseOrientation, layoutLow } = MODEL_360CRAFT;
 const spiral = makeSpiral(spiralCfg);
@@ -67,10 +67,12 @@ test('outline.dxf seam vertices lie on the model seams: mean ≤ 0.75 px, 95th p
   const { pos, neg } = unrolling.seams(0.002);
   const outline = [...pos, ...neg.slice(1, -1).reverse()];
   const near = [];
+  let total = 0;
   ['MyLines1', 'MyLines2'].forEach((layer, j) => {
     const A = pieceAffine(pieces[j], pxPerR);
     const sheet = outline.map(([X, Y]) => [A[0] * X + A[2] * Y + A[4], A[1] * X + A[3] * Y + A[5]]);
     for (const [x, y] of dxf.get(layer).flat()) {
+      total++;
       let best = Infinity;
       for (let i = 0; i < sheet.length; i++) {
         const a = sheet[i];
@@ -84,7 +86,9 @@ test('outline.dxf seam vertices lie on the model seams: mean ≤ 0.75 px, 95th p
       if (best <= 2) near.push(best);
     }
   });
-  assert.ok(near.length > 2000, `only ${near.length} seam vertices`);
+  // Only vertices within 2 px count, so a worse fit would drop vertices out of the statistic
+  // instead of raising it: require the share seen at acceptance (2535 of 2904 = 0.873).
+  assert.ok(near.length >= 0.85 * total, `only ${near.length} of ${total} DXF vertices are seam vertices`);
   const mean = near.reduce((s, d) => s + d, 0) / near.length;
   const p95 = quantile(near, 0.95);
   assert.ok(mean <= 0.75, `mean ${mean.toFixed(3)} px`);

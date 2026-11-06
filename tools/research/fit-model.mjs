@@ -14,7 +14,7 @@ import { nelderMead } from './lib/nelder-mead.mjs';
 import { makeSpiral } from '../../src/sphere/spiral.js';
 import { bandPhase, makeCentreLine } from '../../src/sphere/band.js';
 import { makeUnrolling } from '../../src/sphere/develop.js';
-import { apply, mul, rotZ, rotationFromYPR, yprFromRotation } from '../../src/sphere/orient.js';
+import { apply, rotZ, rotationFromYPR, yprFromRotation } from '../../src/sphere/orient.js';
 import { pieceAffine } from '../../src/model/360craft.js';
 import { loadManifest } from '../../test/support/fixtures.js';
 import { dxfToPolylines, readDxfLines } from '../../test/support/dxf.js';
