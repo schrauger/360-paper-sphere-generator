@@ -42,10 +42,10 @@
           <canvas id="globe-view" width="400" height="400" aria-label="Globe preview; drag to rotate the globe"></canvas>
           <label class="check"><input id="move-photo" type="checkbox"> Move photo (instead of rotating the view)</label>
           <div class="dials" role="group" aria-label="Photo orientation (degrees)">
-            <div class="dial"><label for="yaw">Yaw</label><input id="yaw" form="options" name="yaw" type="range" min="-180" max="180" step="0.01" value="0"><output id="yaw-out" for="yaw">0°</output></div>
-            <div class="dial"><label for="pitch">Pitch</label><input id="pitch" form="options" name="pitch" type="range" min="-90" max="90" step="0.01" value="0"><output id="pitch-out" for="pitch">0°</output></div>
-            <div class="dial"><label for="roll">Roll</label><input id="roll" form="options" name="roll" type="range" min="-180" max="180" step="0.01" value="0"><output id="roll-out" for="roll">0°</output></div>
-            <div class="dial"><label for="roll-slider">Spin</label><input id="roll-slider" type="range" min="-180" max="180" step="0.25" value="0"><output aria-hidden="true"></output></div>
+            <div class="dial"><label for="yaw">Yaw</label><input id="yaw-range" type="range" min="-180" max="180" step="0.01" value="0" aria-label="Yaw slider"><input id="yaw" form="options" name="yaw" type="number" step="0.01" value="0" aria-label="Yaw (degrees)"></div>
+            <div class="dial"><label for="pitch">Pitch</label><input id="pitch-range" type="range" min="-90" max="90" step="0.01" value="0" aria-label="Pitch slider"><input id="pitch" form="options" name="pitch" type="number" step="0.01" value="0" aria-label="Pitch (degrees)"></div>
+            <div class="dial"><label for="roll">Roll</label><input id="roll-range" type="range" min="-180" max="180" step="0.01" value="0" aria-label="Roll slider"><input id="roll" form="options" name="roll" type="number" step="0.01" value="0" aria-label="Roll (degrees)"></div>
+            <div class="dial"><label for="roll-slider">Spin</label><input id="roll-slider" type="range" min="-180" max="180" step="0.25" value="0"><span></span></div>
           </div>
           <p class="hint">Spin turns the photo about the axis pointing at you.</p>
           <button type="button" id="reset" class="ghost">Reset to original</button>
@@ -72,7 +72,7 @@
         </div>
         <div class="field"><label for="diameterMode">Sphere diameter</label>
           <select id="diameterMode" name="diameterMode">
-            <option value="largest" id="largest-option">Largest that fits</option>
+            <option value="largest" id="largest-option">Largest</option>
             <option value="custom">Custom…</option>
           </select></div>
         <div id="custom-diameter" class="field" hidden><label for="diameter">Diameter (mm)</label>
@@ -90,8 +90,8 @@
         <h2>Print</h2>
         <div class="field"><label for="bleedMode">Bleed</label>
           <select id="bleedMode" name="bleedMode">
-            <option value="auto">Auto (360craft's width)</option>
             <option value="off">Off</option>
+            <option value="auto">Auto</option>
             <option value="mm">Custom…</option>
           </select></div>
         <div id="custom-bleed" class="field" hidden><label for="bleedMm">Bleed width (mm)</label>

@@ -94,7 +94,7 @@ function showOrientation() {
   for (const name of ORIENTATION_FIELDS) {
     const field = $(name);
     if (document.activeElement !== field) field.value = fmt(ypr[name]);
-    $(`${name}-out`).textContent = `${fmt(ypr[name])}°`;
+    $(`${name}-range`).value = fmt(ypr[name]);
   }
 }
 
@@ -103,8 +103,16 @@ function orientationFromFields() {
   if (Object.values(ypr).every(Number.isFinite)) rotation = totalRotation(model, ypr);
 }
 
+// Each dial is a number field (the one named input, typed values may exceed the range) and a range slider
+// that mirrors it (the thumb clamps).
 for (const name of ORIENTATION_FIELDS) {
   $(name).addEventListener('input', () => {
+    $(`${name}-range`).value = $(name).value;
+    orientationFromFields();
+    orientationChanged();
+  });
+  $(`${name}-range`).addEventListener('input', () => {
+    $(name).value = $(`${name}-range`).value;
     orientationFromFields();
     orientationChanged();
   });
@@ -150,13 +158,13 @@ function previewDone() {
   }
 }
 
+let lastDiameter = null;
+
 function showDiameter(diameterMm) {
   $('info').textContent = `Sphere diameter: ${diameterMm.toFixed(1)} mm`;
-  $('largest-option').textContent = `Largest that fits (${diameterMm.toFixed(1)} mm)`;
+  $('largest-option').textContent = `Largest (${diameterMm.toFixed(1)} mm)`;
   if ($('diameterMode').value === 'largest') lastDiameter = diameterMm;
 }
-
-let lastDiameter = null;
 
 function showWarnings(warnings) {
   const list = $('warnings');
@@ -188,6 +196,7 @@ function handleMessage(event) {
   } else if (m.type === 'error') {
     if (m.context === 'load') {
       loaded = false;
+      $('drop').classList.remove('loaded');
       $('load-status').textContent = m.message;
       $('render').disabled = true;
     } else if (m.context === 'render') {
@@ -426,8 +435,7 @@ function finishRender({ blob, cutFile, diameterMm, warnings }) {
     links.push(download(new Blob([cutFile.content], { type }), `${base}-sheet.${cutFile.type}`));
   }
   showDiameter(diameterMm);
-  $('info').textContent += '. Downloaded:';
-  $('downloads').replaceChildren(...links.flatMap((a, i) => (i ? [' · ', a] : [a])));
+  $('downloads').replaceChildren('Downloaded: ', ...links.flatMap((a, i) => (i ? [' · ', a] : [a])));
   showWarnings(warnings);
 }
 

@@ -87,8 +87,8 @@ canvas { touch-action: none; cursor: grab; user-select: none; }
 canvas:active { cursor: grabbing; }
 
 .dials { margin-top: .8rem; }
-.dial { display: grid; grid-template-columns: 3.2rem 1fr 3.4rem; align-items: center; gap: .5rem; margin-top: .35rem; }
-.dial output { text-align: right; font-variant-numeric: tabular-nums; }
+.dial { display: grid; grid-template-columns: 3.2rem 1fr 5rem; align-items: center; gap: .5rem; margin-top: .35rem; }
+.dial input[type=number] { text-align: right; font-variant-numeric: tabular-nums; }
 input[type=range] { width: 100%; accent-color: var(--mat); }
 
 .field { display: grid; grid-template-columns: 1fr 10rem; align-items: center; gap: .5rem .75rem; }
@@ -107,6 +107,7 @@ input[type=checkbox] { width: 1.15rem; height: 1.15rem; accent-color: var(--mat)
 .seg { display: flex; border: 1px solid #8b9993; border-radius: 3px; overflow: hidden; }
 .seg button { flex: 1; padding: .4rem 0; border: 0; background: #fff; cursor: pointer; }
 .seg button + button { border-left: 1px solid #8b9993; }
+.seg button:focus-visible { outline: 2px solid var(--focus); outline-offset: -6px; box-shadow: inset 0 0 0 2px var(--ink); }
 .seg button[aria-pressed=true] { background: var(--ink); color: var(--paper); }
 .hint { font-size: .88rem; color: var(--muted); margin: .4rem 0 0; }
 .meta { font-size: .92rem; color: var(--muted); margin: .5rem 0 0; min-height: 1.4em; }
@@ -127,10 +128,12 @@ input[type=checkbox] { width: 1.15rem; height: 1.15rem; accent-color: var(--mat)
 .error:empty { display: none; }
 .warnings { margin: .5rem 0 0; padding-left: 1.2rem; color: var(--warn); font-size: .92rem; }
 .warnings:empty { display: none; }
+#downloads { overflow-wrap: anywhere; }
 #downloads a { color: var(--ink); font-weight: 500; }
 
 .advanced { margin-top: 1.4rem; padding-top: 1.2rem; border-top: 1px dashed var(--edge); }
 .advanced summary { cursor: pointer; font: 600 1.25rem/1.2 'Barlow Condensed', sans-serif; margin-bottom: .75rem; }
+.advanced .field { grid-template-columns: 1fr; gap: .25rem; }
 .advanced .field + .field { margin-top: .6rem; }
 .cli { margin-top: 1rem; display: grid; gap: .4rem; justify-items: start; }
 textarea { width: 100%; font: 13px ui-monospace, monospace; border: 1px solid #8b9993; border-radius: 3px; padding: .4rem; }
