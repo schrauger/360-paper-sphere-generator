@@ -45,7 +45,7 @@ body {
   box-shadow: 0 3px 0 rgba(0, 0, 0, .18);
 }
 .ruler h1 { margin: 0; font: 700 1.9rem/1 'Barlow Condensed', sans-serif; letter-spacing: .01em; }
-.ruler p { margin: 0; font-weight: 500; color: #4a3d0c; max-width: 46ch; text-align: right; }
+.ruler p { margin: 0; font-weight: 500; color: #4a3d0c; text-align: right; }
 
 .bench {
   display: grid; gap: 2rem; padding: 2rem 1.5rem 2rem;
@@ -146,8 +146,21 @@ option.unavail { background: #eceae6; color: #8a1f15; }
 .cli { margin-top: 1rem; display: grid; gap: .4rem; justify-items: start; }
 textarea { width: 100%; font: 13px ui-monospace, monospace; border: 1px solid #8b9993; border-radius: 3px; padding: .4rem; }
 
-.foot { text-align: center; color: rgba(255, 255, 255, .8); font-size: .85rem; padding: 0 1rem 2rem; }
+.foot { text-align: center; color: rgba(255, 255, 255, .85); font-size: .9rem; padding: 0 1rem 2rem; }
+.foot p { margin: .2rem 0; }
 .foot a { color: inherit; }
+
+/* Guide page: one paper card on the mat. */
+.guide { max-width: 46rem; margin: 2rem auto; padding: 1.5rem 1.75rem 1.75rem; }
+.guide h2 { margin-top: 1.5rem; }
+.guide h2:first-child { margin-top: 0; }
+.guide p, .guide li { margin: .5rem 0; }
+.guide ol, .guide ul { padding-left: 1.4rem; }
+.guide .back, .ruler .back { font-weight: 500; color: var(--ink); }
+@media (max-width: 600px) {
+  .ruler { flex-direction: column; align-items: flex-start; gap: .3rem; }
+  .ruler p { text-align: left; }
+}
 
 @media (max-width: 1000px) {
   .bench { grid-template-columns: minmax(0, 1fr); }

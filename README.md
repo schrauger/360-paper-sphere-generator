@@ -31,6 +31,14 @@ Use it in the browser, with no install: **https://sphere.schrauger.com/**. The p
 machine. To run it locally, `npm run serve` and open http://localhost:8080/web/. The sheet downloads as a
 PDF by default; print it at 100% (actual size, no "fit to page") so the marks line up with the cutter.
 
+### Printing and cutting
+
+See the [print and cut guide](https://sphere.schrauger.com/web/guide.html) ([source](web/guide.html)). In short:
+
+- Print the PDF at 100% (actual size, no "fit to page").
+- The printed cut outline is for cutting by hand. With a cutting machine, turn **Cut outline** off: the machine cuts from the cut file, and a printed line shows if the cut is slightly off.
+- Silhouette Studio opens SVG only in Designer Edition or higher; the free Basic Edition opens DXF and `.studio3`. For an SVG: choose Cutter marks Silhouette, open the SVG, select all objects, Group them, set the position to X 10 mm and Y 10 mm, and turn on registration marks with the inset at 10 mm.
+
 ## CLI quick start
 
 ```sh
