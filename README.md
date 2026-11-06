@@ -1,20 +1,26 @@
 # paper-sphere
 
-Turns a 360° equirectangular panorama (2:1) into a printable two-piece paper-sphere sheet. Print the
-sheet, cut out the two S-shaped pieces, fold the glue tabs and join the pieces into a sphere. It
-reimplements the layout of the defunct 360craft site (see [Credits](#credits)).
+**Web app: https://sphere.schrauger.com/** (runs in your browser; the panorama stays on your machine).
 
-<!-- TODO(maintainer): photo of an assembled sphere -->
+Turns a 360° equirectangular panorama (2:1) into a printable two-piece paper-sphere sheet. Print the
+sheet, cut out the two S-shaped pieces and join them into a sphere along their tabs. The tabs can be
+glued or taped, but they don't have to be: tucked inside the seam, they hold the sphere together by
+their own pressure, like the interlocking top flaps of a box. It reimplements the layout of the
+defunct 360craft site (see [Credits](#credits)).
+
+![The two example panoramas as assembled spheres](docs/img/assembled-globes.png)
+
+*Rendered previews of the assembled spheres made from the two example sheets below.*
 
 ![A panorama and the sheet made from it: NASA Blue Marble 2002](docs/img/example-blue-marble.jpg)
 
 *Panorama: NASA Blue Marble 2002 (Terra/MODIS), public domain; combined by Wikimedia user Meow.
 [Source](https://en.wikipedia.org/wiki/File:Blue_Marble_2002.png).*
 
-![A panorama and the sheet made from it: PxHere 461435](docs/img/example-pxhere-461435.jpg)
+![A panorama and the sheet made from it: photo by Bob Dass, PxHere 461435](docs/img/example-pxhere-461435.jpg)
 
-*Panorama: PxHere #461435, CC0 (listed author "CC0-Photographers").
-[Source](https://pxhere.com/en/photo/461435).*
+*Panorama: photo by Bob Dass on PxHere (#461435); free for personal and commercial use, attribution
+required. [Source](https://pxhere.com/en/photo/461435).*
 
 Output is a PNG or JPEG sheet, optionally with the cut outline as SVG or DXF for a cutting machine.
 
@@ -100,15 +106,15 @@ The sheet is rendered by inverse mapping. For every sheet pixel the renderer:
    orientation, and
 4. samples the panorama there (lon = atan2(y, x), lat = asin z; wrapped in u, clamped in v).
 
-The bleed and the cut outline use the signed distance to the band edge. The glue tabs are filled grey and the
+The bleed and the cut outline use the signed distance to the band edge. The tabs are filled grey and the
 rest of the sheet is white.
 
-### 5. Glue tabs
+### 5. Tabs
 
 The tabs are placed along each seam by arc length on the sphere, then built in the flat plane. Each
 one is a pentagon whose shape scales with the seam chord it sits on.
 
-![A glue tab with its pitch, length, height and slant](docs/img/tab.svg)
+![A tab with its pitch, length, height and slant](docs/img/tab.svg)
 
 The diagrams above are generated from the real geometry modules by `node tools/diagrams.mjs`, and the
 example images by `node tools/readme-examples.mjs`.
@@ -124,7 +130,7 @@ numbers only (the reference images are not in this repository, see
   about 0.06% of the radius.
 - **Cut outline** against 360craft's DXF: mean 0.5–0.55 px, 95th percentile 1.7–1.8 px, worst case
   about 3 px, concentrated at the two curled tips. That is up to about 0.25 mm on the low-resolution
-  sheet. The glue tabs add no error beyond the seam's.
+  sheet. The tabs add no error beyond the seam's.
 - **Colour** at `original-high` against 360craft's renders: mean absolute error 2.4–5.1 grey levels,
   and 99.47–99.78% agreement on which pixels are image or paper. This is the fit error seen at twice the
   resolution: about one high-resolution pixel of registration.
@@ -143,7 +149,7 @@ node tools/diagrams.mjs               # regenerate docs/img/*.svg
 npm run bench                         # performance targets
 ```
 
-The fixtures in `test/fixtures/` are public-domain or CC0 panoramas; see its
+The fixtures in `test/fixtures/` are shareable panoramas (public domain, or free with attribution); see its
 [README](test/fixtures/README.md) for sources and licenses.
 
 ## Credits

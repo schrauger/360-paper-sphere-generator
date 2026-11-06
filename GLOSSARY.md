@@ -1,6 +1,6 @@
 # Paper Sphere
 
-Turning a 360° photo into a printable sheet of two S-shaped pieces that are cut out and glued into a sphere.
+Turning a 360° photo into a printable sheet of two S-shaped pieces that are cut out and joined into a sphere.
 
 ## Input
 
@@ -45,7 +45,7 @@ The printable page carrying both pieces and any registration marks.
 _Avoid_: output, canvas, page image
 
 **Tab**:
-A grey flap along a piece's edge that is glued under the other piece during assembly.
+A grey flap along a piece's edge that tucks under the other piece during assembly (glued, taped, or held by friction).
 _Avoid_: flap, glue tab, tooth
 
 **Cut path**:

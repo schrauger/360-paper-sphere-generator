@@ -7,7 +7,7 @@ import { FIXTURES_DIR, loadPanorama, renderCase } from '../test/support/golden-c
 
 const EXAMPLES = [
   { fixture: 'blue-marble', credit: 'Panorama: NASA Blue Marble 2002 (Terra/MODIS), public domain' },
-  { fixture: 'pxhere-461435', credit: 'Panorama: PxHere #461435, CC0' },
+  { fixture: 'pxhere-461435', credit: 'Panorama: photo by Bob Dass, PxHere #461435' },
 ];
 const OUT = new URL('../docs/img/', import.meta.url);
 const SHEET_CASE = { name: 'readme', raw: { page: 'letter', dpi: 72, bleed: 'auto' } };
