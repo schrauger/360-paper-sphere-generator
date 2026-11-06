@@ -78,7 +78,7 @@ const pageLabel = (value) => $('page').querySelector(`[value="${value}"]`).textC
 /** The Silhouette problems for the current form, as field names (empty unless .studio3 is chosen). */
 function currentProblems() {
   if ($('cutFile').value !== 'studio3') return [];
-  return studio3Problems({ pageName: $('page').value, diameterMm: chosenDiameter(), copies: $('copies').value, marks: $('marks').value });
+  return studio3Problems({ pageName: $('page').value, diameterMm: chosenDiameter(), copies: $('copies').disabled ? 'max' : $('copies').value, marks: $('marks').value });
 }
 
 /** Colour the page and diameter items, flag the offending fields and explain; all cleared unless .studio3 is chosen. */
@@ -366,7 +366,7 @@ drop.addEventListener('drop', (e) => {
   loadFile(e.dataTransfer.files[0]);
 });
 
-let pageUnit = 'mm';
+let pageUnit = $('pageUnit').value; // the browser may restore 'in' on reload
 /** Switching the custom page's unit converts the shown width and height (0.01 in / 0.1 mm). */
 function convertPageUnit() {
   const next = $('pageUnit').value;
@@ -534,10 +534,12 @@ $('render').addEventListener('click', () => {
   downloadUrls.forEach((u) => URL.revokeObjectURL(u));
   downloadUrls = [];
   $('info').textContent = 'Rendering the full-resolution sheet…';
+  pendingStudio3 = studio3Choice(); // decided now, so a form change during the render can't pair the sheet with another size's file
   worker.postMessage({ type: 'render', options });
 });
 
 let downloadUrls = [];
+let pendingStudio3 = Promise.resolve(null);
 
 /** { url, name } of the chosen preset's .studio3 when ".studio3 (Silhouette)" is chosen and the file exists, else null. */
 async function studio3Choice() {
@@ -573,7 +575,7 @@ async function finishRender({ blob, format, cutFile, diameterMm, copies, warning
   const base = fileName.replace(/\.[^./\\]+$/, '') || 'panorama';
   if (!FORMATS.has(format)) throw new Error(`Unexpected sheet format ${format || '(none)'}`);
   const links = [download(blob, `${base}-sheet.${format}`)];
-  const studio3 = await studio3Choice();
+  const studio3 = await pendingStudio3;
   if (cutFile) {
     const type = cutFile.type === 'svg' ? 'image/svg+xml' : 'application/dxf';
     links.push(download(new Blob([cutFile.content], { type }), `${base}-sheet.${cutFile.type}`));
