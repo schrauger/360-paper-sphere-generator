@@ -122,3 +122,24 @@ test('globe corners are transparent', () => {
   for (const [i, j] of [[0, 0], [size - 1, 0], [0, size - 1], [size - 1, size - 1]]) assert.equal(pixel(globe, i, j)[3], 0);
   assert.equal(pixel(globe, size >> 1, size >> 1)[3], 255);
 });
+
+test('sheet preview bandDirections: unit band vectors that agree with the rendered colour', () => {
+  const preview = makeSheetPreview(model, geometry, { ...sheetOptions, outline: false });
+  const { alpha, vec } = preview.bandDirections;
+  assert.equal(alpha.length, preview.width * preview.height);
+  assert.equal(vec.length, 3 * alpha.length);
+  const rotation = totalRotation(model, { yaw: 20, pitch: -10, roll: 5 });
+  const img = preview.render(pano, rotation);
+  let inside = 0;
+  for (let k = 0; k < alpha.length; k += 7) {
+    if (alpha[k] !== 255) continue;
+    inside++;
+    const p = [vec[3 * k], vec[3 * k + 1], vec[3 * k + 2]];
+    assert.ok(Math.abs(Math.hypot(...p) - 1) < 1e-5);
+    const [u, v] = directionToEquirect(apply(rotation, p), pano.width, pano.height);
+    const rgb = [0, 0, 0];
+    sampleEquirect(pano, u, v, rgb, 0);
+    assert.ok(rgb.every((c, i) => Math.abs(c - img.data[4 * k + i]) <= 3), `pixel ${k}`);
+  }
+  assert.ok(inside > 100, 'enough opaque pixels probed');
+});

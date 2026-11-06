@@ -12,6 +12,27 @@ const MM_PER_IN = 25.4;
 // map stretches distances across the edge by this factor over the sphere distance bleedR (R25).
 const EDGE_STRETCH = 1.069;
 
+/** The layoutSheet arguments for `options` (a preset fixes the sheet; otherwise the page and its extras). */
+export function layoutOptionsFor(options) {
+  const { preset, dpi } = options;
+  return preset
+    ? { preset, dpi }
+    : { page: options.page, dpi, diameterMm: options.diameterMm, marginMm: options.marginMm, marks: options.marks };
+}
+
+/** { bleedR, warnings }: the sphere bleed (R units) for options.bleedMm on `layout`, clamped to MAX_BLEED_R (R31). */
+export function resolveBleed(options, layout, model = MODEL_360CRAFT) {
+  const { bleedMm, dpi } = options;
+  const warnings = [];
+  let bleedR = bleedMm === 'auto' ? model.style.bleed : ((bleedMm / MM_PER_IN) * dpi) / layout.pxPerR / EDGE_STRETCH;
+  if (bleedR > MAX_BLEED_R) {
+    const maxMm = (MAX_BLEED_R * EDGE_STRETCH * layout.pxPerR * MM_PER_IN) / dpi;
+    warnings.push(`Bleed limited to ${maxMm.toFixed(2)} mm`);
+    bleedR = MAX_BLEED_R;
+  }
+  return { bleedR, warnings };
+}
+
 /**
  * { image: RGBAImage, layout, warnings, diameterMm, cutFile: null | { type, content } } for the
  * panorama `pano` (RGBAImage, exactly 2:1) and `options` (normalizeOptions output). Library
@@ -22,18 +43,10 @@ export function renderSheet(pano, options) {
   const model = MODEL_360CRAFT;
   const geometry = makeModelGeometry(model);
   const { outline } = geometry;
-  const { preset, dpi, bleedMm } = options;
-  const layout = preset
-    ? layoutSheet(model, outline, { preset, dpi })
-    : layoutSheet(model, outline, { page: options.page, dpi, diameterMm: options.diameterMm, marginMm: options.marginMm, marks: options.marks });
-  const warnings = [...layout.warnings];
-
-  let bleedR = bleedMm === 'auto' ? model.style.bleed : ((bleedMm / MM_PER_IN) * dpi) / layout.pxPerR / EDGE_STRETCH;
-  if (bleedR > MAX_BLEED_R) {
-    const maxMm = (MAX_BLEED_R * EDGE_STRETCH * layout.pxPerR * MM_PER_IN) / dpi;
-    warnings.push(`Bleed limited to ${maxMm.toFixed(2)} mm`);
-    bleedR = MAX_BLEED_R;
-  }
+  const layout = layoutSheet(model, outline, layoutOptionsFor(options));
+  const bleed = resolveBleed(options, layout, model);
+  const { bleedR } = bleed;
+  const warnings = [...layout.warnings, ...bleed.warnings];
 
   const image = composeSheet(pano, layout, geometry, model, {
     outline: options.outline,

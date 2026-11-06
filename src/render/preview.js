@@ -47,8 +47,9 @@ function rotateInto(M, v, out) {
  * Sheet preview: the layout for `layoutOptions` (passed to layoutSheet) scaled to fit
  * maxWidth × maxHeight. The per-pixel band vectors and alpha are computed once; the static
  * layers (background, tabs; then the outline and marks) are pre-rendered.
- * Returns { width, height, layout, render(pano, rotation) → RGBAImage }; `rotation` is
- * totalRotation(model, ypr).
+ * Returns { width, height, layout, bandDirections, render(pano, rotation) → RGBAImage }; `rotation`
+ * is totalRotation(model, ypr). bandDirections = { alpha, vec }: per preview pixel (row-major) the
+ * piece coverage × 255 and the band-frame unit vector (3 floats), for picking a point under the cursor.
  */
 export function makeSheetPreview(model, geometry, { maxWidth, maxHeight, outline = true, bleedR = 0, layoutOptions = {} }) {
   if (!(maxWidth >= 1 && maxHeight >= 1)) throw new RangeError('maxWidth and maxHeight must be ≥ 1 px');
@@ -120,7 +121,7 @@ export function makeSheetPreview(model, geometry, { maxWidth, maxHeight, outline
     return out;
   }
 
-  return { width, height, layout, render };
+  return { width, height, layout, bandDirections: { alpha, vec }, render };
 }
 
 // Per-model data shared by the panorama view and the globe: the geometry and, per seam (index 0:
