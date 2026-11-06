@@ -22,6 +22,9 @@ def main():
     interior_base = cv2.erode(ink, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))) > 0
     result = {}
     for f in manifest["fixtures"]:
+        # Caveat: for cropped fixtures this is the reference warped into canonical high-res coords
+        # (bilinear, via align.json), which smooths it and biases the MAEs low versus alaska.
+        # Consumers must compare against the reference resampled the same way, else values are too strict.
         img, valid = common.aligned_reference_high(f)
         interior = interior_base & (valid > 0)
         shifted = cv2.warpAffine(img, np.array([[1, 0, 0.5], [0, 1, 0.5]], np.float64),

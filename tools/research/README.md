@@ -13,3 +13,11 @@ Run from the repo root, in this order:
 - `align.py`: for `cropped: true` fixtures, fits uniform scale + translation (reference px to canonical high-res sheet px) of the fixture `mask` image to the DXF mask. Writes `<id>.align.json`.
 - `correspond.py`: SIFT + FLANN (ratio 0.7) between the panorama (3456x1728) and the low-res sheet, with the 40 px / 0.06 rad neighbourhood probe filter. Writes `<id>.matches.json` (`[x, y, lonRad, latRad]`, low-res sheet px).
 - `tolerances.py`: per-fixture colour MAE (half-pixel shift, JPEG q90 re-encode) on the eroded ink interior. Writes `test/regression/tolerances.json`.
+
+## Tolerances
+
+`test/regression/tolerances.json` values for cropped fixtures (2018-09-a, 2018-09-b) are measured on the reference warped into canonical high-res coordinates with bilinear resampling via `<id>.align.json`. That smooths the image and biases the MAEs low compared with alaska (uncropped, native pixels). Consumers must compare against the reference resampled the same way; otherwise the thresholds are too strict.
+
+## Probe filter
+
+A match is kept only if at least `MIN_NEIGHBOURS = 3` other matches lie within 40 px on the sheet and its direction is within 0.06 rad of the median neighbour direction. Matches with fewer neighbours are dropped. This is our interpretation of the probe filter.
