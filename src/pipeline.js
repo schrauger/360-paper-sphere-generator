@@ -1,6 +1,7 @@
 // The render pipeline: panorama + RenderOptions → sheet image, layout, warnings and cut file.
 import { MODEL_360CRAFT } from './model/360craft.js';
 import { makeModelGeometry } from './model/geometry.js';
+import { seamPoint } from './sphere/band.js';
 import { layoutSheet } from './layout/sheet.js';
 import { composeSheet } from './render/compose.js';
 import { MAX_BLEED_R, totalRotation } from './render/warp.js';
@@ -8,9 +9,16 @@ import { cutPathSvg } from './export/svg.js';
 import { cutPathDxf } from './export/dxf.js';
 
 const MM_PER_IN = 25.4;
-// sec²d at the body edge (≈ 1.0690, as measure-style used for style.bleed, ruling R27): the flat
-// map stretches distances across the edge by this factor over the sphere distance bleedR (R25).
-const EDGE_STRETCH = 1.069;
+
+/**
+ * sec²d at the body's band edge: the stretch the flat map applies across the cut edge (R25/R27),
+ * from the seam's strip distance d at the equator (the body). For MODEL_360CRAFT it is ≈ 1.0696.
+ */
+export function edgeStretch(model = MODEL_360CRAFT) {
+  const { spiral, unrolling } = makeModelGeometry(model);
+  const { d } = unrolling.sphereToStrip(seamPoint(spiral, Math.PI / 2, 1));
+  return 1 / Math.cos(d) ** 2;
+}
 
 /** The layoutSheet arguments for `options` (a preset fixes the sheet; otherwise the page and its extras). */
 export function layoutOptionsFor(options) {
@@ -24,9 +32,10 @@ export function layoutOptionsFor(options) {
 export function resolveBleed(options, layout, model = MODEL_360CRAFT) {
   const { bleedMm, dpi } = options;
   const warnings = [];
-  let bleedR = bleedMm === 'auto' ? model.style.bleed : ((bleedMm / MM_PER_IN) * dpi) / layout.pxPerR / EDGE_STRETCH;
+  const stretch = edgeStretch(model);
+  let bleedR = bleedMm === 'auto' ? model.style.bleed : ((bleedMm / MM_PER_IN) * dpi) / layout.pxPerR / stretch;
   if (bleedR > MAX_BLEED_R) {
-    const maxMm = (MAX_BLEED_R * EDGE_STRETCH * layout.pxPerR * MM_PER_IN) / dpi;
+    const maxMm = (MAX_BLEED_R * stretch * layout.pxPerR * MM_PER_IN) / dpi;
     warnings.push(`Bleed limited to ${maxMm.toFixed(2)} mm`);
     bleedR = MAX_BLEED_R;
   }
