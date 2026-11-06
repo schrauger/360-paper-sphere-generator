@@ -121,6 +121,25 @@ for (const cfg of FAMILIES) {
       assert.ok(Math.abs(kgFd - f.kg) <= 1e-4, `s=${s}: ${kgFd} vs ${f.kg}`);
     }
   });
+
+  test(`${tag}: kg near the poles matches a relative-step reference`, () => {
+    const cl = makeCentreLine(spiral, { samples: 20000 });
+    // Reference: kg = det(C, C', C'')/|C'|^3 from finite differences of
+    // pointAt(θ, λ(θ)) with step proportional to the distance from the pole.
+    const C = (t) => pointAt(t, spiral.lambda(t));
+    const ref = (t) => {
+      const d = Math.min(t, Math.PI - t) * 1e-2;
+      const a = C(t - d), b = C(t), c = C(t + d);
+      const C1 = [0, 1, 2].map((k) => (c[k] - a[k]) / (2 * d));
+      const C2 = [0, 1, 2].map((k) => (c[k] - 2 * b[k] + a[k]) / (d * d));
+      return dot(cross(b, C1), C2) / Math.hypot(...C1) ** 3;
+    };
+    for (const th of [1e-3, 1e-2, Math.PI - 1e-2, Math.PI - 1e-3]) {
+      const kg = cl.frame(cl.sOfTheta(th)).kg;
+      const r = ref(th);
+      assert.ok(Math.abs(kg - r) <= 2e-3 * Math.max(1, Math.abs(r)), `θ=${th}: ${kg} vs ${r}`);
+    }
+  });
 }
 
 test('clelia rate 6: length equals Simpson ∫₀^π √(1+36 sin²θ) dθ with 1e5 steps, within 1e-6', () => {

@@ -52,8 +52,7 @@ const cross = (a, b) => [
 /**
  * Centre line of band 0 from pole to pole, parameterised by arc length s.
  * Arc length is a Simpson-integrated table over a uniform θ grid, linearly
- * interpolated. C and T are analytic; kg = N·dT/ds uses a central difference
- * of the analytic T in θ (one-sided at the poles).
+ * interpolated. C, T and kg are all analytic.
  */
 export function makeCentreLine(spiral, { samples = 20000 } = {}) {
   const n = samples % 2 === 0 ? samples : samples + 1; // Simpson needs even intervals
@@ -100,13 +99,25 @@ export function makeCentreLine(spiral, { samples = 20000 } = {}) {
     const C = pointAt(t, spiral.lambda(t));
     const T = tangent(t);
     const N = cross(C, T);
-    const e = 1e-5;
-    const t0 = Math.max(t - e, 0);
-    const t1 = Math.min(t + e, Math.PI);
-    const T0 = tangent(t0);
-    const T1 = tangent(t1);
-    const dTds = [0, 1, 2].map((k) => (T1[k] - T0[k]) / (t1 - t0) / speed(spiral, t));
-    const kg = N[0] * dTds[0] + N[1] * dTds[1] + N[2] * dTds[2];
+    // Analytic geodesic curvature: kg = (C × C′)·C″ / |C′|³ (θ-derivatives).
+    // Loxodrome kg diverges like 1/θ at the tips, so the value at the clamped
+    // tip is a convention (finite, but not a limit).
+    const l = spiral.lambda(t);
+    const dl = spiral.dLambda(t);
+    const ddl = spiral.ddLambda(t);
+    const st = Math.sin(t);
+    const ct = Math.cos(t);
+    const cl = Math.cos(l);
+    const sl = Math.sin(l);
+    const k2 = 1 + dl * dl;
+    const C2 = [
+      -st * cl * k2 - 2 * ct * sl * dl - st * sl * ddl,
+      -st * sl * k2 + 2 * ct * cl * dl + st * cl * ddl,
+      -ct,
+    ];
+    const C1 = dCdTheta(spiral, t);
+    const CxC1 = cross(C, C1);
+    const kg = (CxC1[0] * C2[0] + CxC1[1] * C2[1] + CxC1[2] * C2[2]) / Math.hypot(...C1) ** 3;
     return { C, T, N, kg };
   }
 

@@ -5,7 +5,7 @@ const LOX_EPS = 1e-9;
 
 export function makeSpiral({ family, rate }) {
   if (family === 'clelia') {
-    return { family, rate, lambda: (t) => rate * t, dLambda: () => rate };
+    return { family, rate, lambda: (t) => rate * t, dLambda: () => rate, ddLambda: () => 0 };
   }
   if (family === 'loxodrome') {
     // λ = rate·ln tan(θ/2) diverges at the poles, so θ is clamped.
@@ -15,6 +15,10 @@ export function makeSpiral({ family, rate }) {
       rate,
       lambda: (t) => rate * Math.log(Math.tan(clamp(t) / 2)),
       dLambda: (t) => rate / Math.sin(clamp(t)),
+      ddLambda: (t) => {
+        const c = clamp(t);
+        return (-rate * Math.cos(c)) / Math.sin(c) ** 2;
+      },
     };
   }
   throw new Error(`Unknown spiral family: ${family}`);
