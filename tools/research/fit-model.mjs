@@ -6,12 +6,8 @@
 // of each piece. Cost = mean Huber(correspondence residual) + mean Huber(DXF seam distance of
 // the closest 70% of DXF vertices), both in low-res px, Huber δ = 2 px.
 //
-// Usage: node tools/research/fit-model.mjs [--quick] [--transverse=tan]
-//   --quick            fewer matches and iterations (smoke run)
-//   --transverse=tan   diagnostic, not the production unrolling: lay each strip point at flat
-//                      offset tan(d) instead of d (and tip cells at tan ρ), i.e. project the band
-//                      centrally onto the tangent developable along the centre line. Writes
-//                      fit-report-tan.json instead of fit-report.json.
+// Usage: node tools/research/fit-model.mjs [--quick]
+//   --quick   fewer matches and iterations (smoke run)
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { nelderMead } from './lib/nelder-mead.mjs';
@@ -40,11 +36,7 @@ const HALF_PI = Math.PI / 2;
 const DEG = Math.PI / 180;
 
 const quick = process.argv.includes('--quick');
-const tan = process.argv.includes('--transverse=tan');
-const REPORT_FILE = tan ? 'fit-report-tan.json' : 'fit-report.json';
-// Strip record ↔ the record develop.js lays flat: identity, or the --transverse=tan diagnostic.
-const toFlatRecord = tan ? (r) => ({ ...r, d: Math.tan(r.d), rho: Math.tan(r.rho) }) : (r) => r;
-const fromFlatRecord = tan ? (r) => ({ ...r, d: Math.atan(r.d), rho: Math.atan(r.rho) }) : (r) => r;
+const REPORT_FILE = 'fit-report.json';
 
 // ---- Self-test ------------------------------------------------------------------------------
 {
@@ -123,7 +115,7 @@ function geometry(rate, step) {
   const spiral = makeSpiral({ family: 'clelia', rate });
   const centreLine = makeCentreLine(spiral);
   const un = makeUnrolling(spiral, centreLine);
-  const { pos, neg } = tan ? seamsVia(un, centreLine, step) : un.seams(step);
+  const { pos, neg } = un.seams(step);
   const L = un.length;
   const sAt = (i) => Math.min(i * step, L);
   const verts = [...pos.map((p, i) => ({ p, s: sAt(i) })), ...neg.slice(1, -1).map((p, i) => ({ p, s: sAt(i + 1) })).reverse()];
@@ -191,25 +183,6 @@ function geometry(rate, step) {
   return geo;
 }
 
-// develop.js seams(step), with each seam point's strip record passed through toFlatRecord.
-function seamsVia(un, centreLine, step) {
-  const pos = [];
-  const neg = [];
-  const count = Math.max(1, Math.ceil(un.length / step));
-  let hintPos;
-  let hintNeg;
-  for (let i = 0; i <= count; i++) {
-    const C = centreLine.frame(i === count ? un.length : i * step).C;
-    const a = un.sphereToStrip([-C[1], C[0], C[2]], hintPos);
-    const b = un.sphereToStrip([C[1], -C[0], C[2]], hintNeg);
-    hintPos = a.s;
-    hintNeg = b.s;
-    pos.push(un.stripToFlat(toFlatRecord(a)));
-    neg.push(un.stripToFlat(toFlatRecord(b)));
-  }
-  return { pos, neg };
-}
-
 // ---- Model ----------------------------------------------------------------------------------
 // params = [rate, yaw, pitch, roll, pxPerR, x0, y0, angle0, x1, y1, angle1]
 const unpack = (v, bands) => ({
@@ -244,7 +217,7 @@ function locate(geo, model, inverses, m, hints) {
       continue;
     }
     if (hints && rec.cell === 'strip') hints[j] = rec.s;
-    const p = geo.un.stripToSphere(fromFlatRecord(rec));
+    const p = geo.un.stripToSphere(rec);
     if (Math.abs(bandPhase(p, geo.spiral)) >= HALF_PI) continue;
     return { piece: j, cell: rec.cell, s: rec.s, p: model.pieces[j].band ? apply(rotZ(Math.PI), p) : p };
   }
@@ -515,7 +488,7 @@ function evaluate(v, bands) {
 const result = fit();
 const report = {
   generated: new Date().toISOString(),
-  unrolling: tan ? 'diagnostic: flat offset tan(d), tip tan(ρ)' : 'develop.js (closest-point strip + tip cells)',
+  unrolling: 'develop.js (closest-point strip + tip cells, flat offsets tan d / tan ρ)',
   data: { fixtures: FIXTURES, matches: matches.length, fitMatches: fitMatches.length, dxf: path.basename(manifest.dxfPath), fitStep: FIT_STEP, reportStep: REPORT_STEP },
   acceptance: ACCEPT,
   init: result.init,

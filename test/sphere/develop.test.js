@@ -5,11 +5,15 @@ import { bandOf, makeCentreLine } from '../../src/sphere/band.js';
 import { makeUnrolling } from '../../src/sphere/develop.js';
 
 // Clelia rate 6 only (ruling R9). Every test covers the full band, tips included (ruling R10).
+// Transverse rule (ruling R15): strip (s, d) ↦ c(s) + tan d·n(s), tip cell (ρ, α) ↦ c(tip) +
+// tan ρ·(cos α·t + sin α·n) + δ: the band projected centrally onto the tangent developable along C.
 const FAMILIES = [{ family: 'clelia', rate: 6 }];
-// Measured ranges of the principal stretches (see the task-5 report), pinned so a regression
-// shows up: whole band incl. tip cells, outside the focal discs; and 0.01–0.02 R from a focal point.
-const STRETCH_FULL = [0.94, 1.09];
-const STRETCH_FOCAL = 1.2;
+// Tip cells: measured ranges of the principal stretches in band 0 ([0.9988, 1.0570]) and over
+// band + bleed ([0.851, 1.089], the low end in the bleed next to the tip end), from the task-5
+// report, fix round 2; pinned so a regression shows up. Strip cells have exact model bounds (below).
+const STRETCH_TIP_BAND = [0.99, 1.07];
+const STRETCH_TIP = [0.84, 1.1];
+const BLEED = 0.035; // R: 360craft's bleed (25–35 px at original-high), the tip correction's reach
 
 function rng(seed) {
   return () => {
@@ -123,6 +127,29 @@ for (const cfg of FAMILIES) {
     }
   });
 
+  test(`${tag}: transverse rule: toFlat(s, d) = c(s) + tan d·n(s) (d = sphere geodesic offset); a tip's normal rays at tan ρ`, () => {
+    const r = rng(31);
+    for (let i = 0; i < 500; i++) {
+      const s = i < 10 ? 0 : i < 20 ? L : L * r();
+      const d = (r() - 0.5) * 0.9;
+      const { c, n } = un.flatFrame(s);
+      const want = [c[0] + Math.tan(d) * n[0], c[1] + Math.tan(d) * n[1]];
+      assert.ok(dist2(un.toFlat(s, d), want) < 1e-12, `s=${s} d=${d}`);
+      assert.ok(dist2(un.stripToFlat({ cell: 'strip', s, d }), want) < 1e-12);
+    }
+    // The tip cell meets the s = 0 / L strip cell on the tip's normal rays (α = ±π/2), with no
+    // correction there: c(tip) ± tan ρ·n(tip).
+    for (const [cell, s] of [['tipN', 0], ['tipS', L]]) {
+      for (let i = 0; i < 100; i++) {
+        const rho = 0.5 * r();
+        for (const sign of [1, -1]) {
+          const q = un.stripToFlat({ cell, s, d: NaN, rho, alpha: (sign * Math.PI) / 2 });
+          assert.ok(dist2(q, un.toFlat(s, sign * rho)) < 1e-12, `${cell} rho=${rho} sign=${sign}`);
+        }
+      }
+    }
+  });
+
   test(`${tag}: isometric along the centre line: |∂toSphere/∂s| = |∂toSphere/∂d| = 1 at d = 0 within 1e-6, whole length`, () => {
     const r = rng(4);
     // band.js holds C(0) and C(L) 1e-9 off the poles (its pole nudge), so the stencil keeps
@@ -225,6 +252,43 @@ for (const cfg of FAMILIES) {
     assert.ok(worst < 0.01);
   });
 
+  // T9 renders a raster and feeds each pixel the previous pixel's s as the guess, including guesses
+  // from a tip cell (s = 0 / L) or from across the medial axis. Every answer must equal the
+  // unguided one, and every ok = true answer must be a consistent preimage: it maps back to the
+  // query and is the closest-point record of its own sphere point. Covers the tips out to 0.6 R,
+  // i.e. band 0, the bleed and the band-1 surroundings where no consistent preimage may exist.
+  test(`${tag}: flatToStrip raster-style (previous pixel's s as guess) round both tips: same as unguided, ok = true only for consistent answers`, () => {
+    const STEP = 1 / 150;
+    const HALF = 0.6;
+    const cells = new Set();
+    let okCount = 0;
+    let notOk = 0;
+    for (const s0 of [0, L]) {
+      const c0 = un.flatFrame(s0).c;
+      for (let y = c0[1] - HALF; y <= c0[1] + HALF; y += STEP) {
+        let guess;
+        for (let x = c0[0] - HALF; x <= c0[0] + HALF; x += STEP) {
+          const a = un.flatToStrip(x, y, guess);
+          const b = un.flatToStrip(x, y);
+          guess = a.s;
+          assert.equal(a.ok, b.ok, `(${x}, ${y}) guess vs none: ${JSON.stringify(a)} ${JSON.stringify(b)}`);
+          if (!a.ok) {
+            notOk++;
+            continue;
+          }
+          okCount++;
+          cells.add(a.cell);
+          assert.ok(sameStripPoint(a, b, 1e-9), `(${x}, ${y}): ${JSON.stringify(a)} vs ${JSON.stringify(b)}`);
+          assert.ok(dist2(un.stripToFlat(a), [x, y]) < 1e-9, `(${x}, ${y}) does not map back: ${JSON.stringify(a)}`);
+          const again = un.sphereToStrip(un.stripToSphere(a), a.s);
+          assert.ok(sameStripPoint(again, a, 1e-8), `(${x}, ${y}): ${JSON.stringify(a)} is not closest-point: ${JSON.stringify(again)}`);
+        }
+      }
+    }
+    assert.deepEqual([...cells].sort(), ['strip', 'tipN', 'tipS']);
+    assert.ok(okCount > 40000 && notOk > 0, `${okCount} ok, ${notOk} not ok`);
+  });
+
   test(`${tag}: flatToStrip reports ok = false far from the piece`, () => {
     for (const [x, y] of [[1e6, 1e6], [-50, 3], [0, 40]]) {
       const out = un.flatToStrip(x, y, L / 2);
@@ -250,11 +314,6 @@ for (const cfg of FAMILIES) {
     assert.ok(n1 > 1000);
   });
 
-  test(`${tag}: flat outline area ≈ 2π (band 0 is half the sphere), within the measured distortion`, () => {
-    const ratio = polygonArea(outline) / (2 * Math.PI);
-    assert.ok(ratio > 1 && ratio < 1.02, `area ratio ${ratio}`); // measured 1.0106
-  });
-
   test(`${tag}: edgeDistance is a signed distance to the band edge: 0 on the seams, + in band 0, slope 1`, () => {
     const r = rng(11);
     for (let i = 0; i < 2000; i++) {
@@ -278,6 +337,29 @@ for (const cfg of FAMILIES) {
       const gn = (un.edgeDistance(move(north, 1 / nn)) - un.edgeDistance(move(north, -1 / nn))) / (2 * h);
       if (e < 0.02) assert.ok(Math.abs(Math.hypot(ge, gn) - 1) < 0.05, `p=${p}: |grad| ${Math.hypot(ge, gn)}`);
     }
+  });
+
+  // edgeDistance is exact near the poles and the edge, first order elsewhere, blended in between.
+  // Near a pole first order is off by up to ~50% 0.1 R from the edge, so the blend's slope reaches
+  // ~3.5 there (0.07–0.1 R from the edge by first order, clear of the bleed edge, which stays
+  // exact); a jump (round 1: up to 2e-2 R) would show as a far larger step.
+  test(`${tag}: edgeDistance is continuous where it switches between first order and exact (meridian sweeps near both poles)`, () => {
+    const STEP = 2e-5;
+    let worst = 0;
+    for (const z of [1, -1]) {
+      for (let k = 0; k < 5; k++) {
+        const lon = (2 * Math.PI * (k + 0.37)) / 5;
+        const at = (theta) => [Math.sin(theta) * Math.cos(lon), Math.sin(theta) * Math.sin(lon), z * Math.cos(theta)];
+        let prev = un.edgeDistance(at(0.02));
+        for (let theta = 0.02 + STEP; theta < 0.62; theta += STEP) {
+          const e = un.edgeDistance(at(theta));
+          worst = Math.max(worst, Math.abs(e - prev) / STEP);
+          assert.ok(Math.abs(e - prev) <= 4 * STEP, `z=${z} lon=${lon} θ=${theta}: step ${e - prev}`);
+          prev = e;
+        }
+      }
+    }
+    assert.ok(worst > 0.9, `slope ${worst}`);
   });
 
   test(`${tag}: seams run tip to tip, continuous (vertices ≤ 2·step apart) and smooth (turn ≤ 3° per vertex)`, () => {
@@ -343,7 +425,9 @@ for (const cfg of FAMILIES) {
     assert.ok(worst > 0.9);
   });
 
-  // Principal stretches of the forward map (flat length / sphere length), from a finite-difference Jacobian.
+  // Principal stretches of the forward map (flat length / sphere length), from a finite-difference
+  // Jacobian. `clean`: all five sample points share p's cell (and, in a strip cell, its arm of C),
+  // so the differences do not straddle the medial axis, where the map is only C⁰ in places.
   const stretches = (p) => {
     const z = Math.abs(p[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0];
     const e1 = [p[1] * z[2] - p[2] * z[1], p[2] * z[0] - p[0] * z[2], p[0] * z[1] - p[1] * z[0]];
@@ -351,7 +435,13 @@ for (const cfg of FAMILIES) {
     for (let k = 0; k < 3; k++) e1[k] /= n1;
     const e2 = [p[1] * e1[2] - p[2] * e1[1], p[2] * e1[0] - p[0] * e1[2], p[0] * e1[1] - p[1] * e1[0]];
     const h = 1e-6;
-    const F = (v, t) => un.stripToFlat(un.sphereToStrip(p.map((x, k) => x * Math.cos(t) + v[k] * Math.sin(t))));
+    const pt = un.sphereToStrip(p);
+    let clean = true;
+    const F = (v, t) => {
+      const q = un.sphereToStrip(p.map((x, k) => x * Math.cos(t) + v[k] * Math.sin(t)));
+      if (q.cell !== pt.cell || Math.abs(q.s - pt.s) > 1e-3) clean = false;
+      return un.stripToFlat(q);
+    };
     const [qa, qb, qc, qd] = [F(e1, h), F(e1, -h), F(e2, h), F(e2, -h)];
     const a = (qa[0] - qb[0]) / (2 * h);
     const b = (qc[0] - qd[0]) / (2 * h);
@@ -360,67 +450,163 @@ for (const cfg of FAMILIES) {
     const T = a * a + b * b + c * c + d * d;
     const D = a * d - b * c;
     const disc = Math.sqrt(Math.max(0, (T * T) / 4 - D * D));
-    return [Math.sqrt(T / 2 - disc), Math.sqrt(T / 2 + disc), D];
+    return { lo: Math.sqrt(T / 2 - disc), hi: Math.sqrt(T / 2 + disc), det: D, pt, clean };
   };
 
-  // The tips' focal points: where the medial axis starts, at distance atan(1/|kg|) along the
-  // concave normal. The closest-point strip chart is singular there (its stretch grows like
-  // 1/distance), in a disc of ~0.01 R; FOCAL_DISC excludes that disc from the range tests.
-  const FOCAL_DISC = 0.02;
+  // The tips' focal points F: where the medial axis starts, at distance atan(1/|kg|) along the
+  // concave normal. Under the old flat offset d the strip chart was singular there (flat focal
+  // distance 1/kg ≠ sphere atan(1/kg)); under tan d both foci coincide, so no disc is excluded.
   const focalPoints = [0, L].map((s) => {
     const kg = cl.frame(s).kg;
     return un.toSphere(s, Math.sign(kg) * Math.atan(1 / Math.abs(kg)));
   });
-  const nearFocal = (p, r) => focalPoints.some((F) => Math.acos(Math.min(1, dot(p, F))) < r);
+  const nearPoint = (r, F, cap) => {
+    const v = randomPoint(r);
+    const k = dot(v, F);
+    const t = [v[0] - k * F[0], v[1] - k * F[1], v[2] - k * F[2]];
+    const nt = Math.hypot(...t);
+    const rad = cap * Math.sqrt(r());
+    return F.map((x, j) => x * Math.cos(rad) + (t[j] / nt) * Math.sin(rad));
+  };
+  // Band + bleed sample: half uniform, half near a pole, plus discs of 0.02 R round both F.
+  const bleedPoints = (seed, n) => {
+    const r = rng(seed);
+    const out = [];
+    while (out.length < n) {
+      const k = out.length % 4;
+      const p = k === 0 ? randomPoint(r) : k === 1 ? pointNearPole(r, r() < 0.5 ? 1 : -1, 0.6) : nearPoint(r, focalPoints[k - 2], 0.02);
+      const e = un.edgeDistance(p);
+      if (e > -BLEED && Math.abs(e) > 1e-5) out.push(p); // differences must not straddle the cut
+    }
+    return out;
+  };
+  // Largest |d| of a strip cell in band 0: on the seams (|d| grows along each foot's normal, and
+  // the medial axis inside the band ends on the seam).
+  const D_EDGE = (() => {
+    let m = 0;
+    for (const side of [1, -1]) {
+      for (let i = 0; i <= 2000; i++) {
+        const C = cl.frame((L * i) / 2000).C;
+        const pt = un.sphereToStrip([-side * C[1], side * C[0], C[2]]);
+        if (pt.cell === 'strip') m = Math.max(m, Math.abs(pt.d));
+      }
+    }
+    return m;
+  })();
 
-  test(`${tag}: stretch bound: both principal stretches stay within [0.95, 1.05] in every strip cell (all s, tips included), except ${FOCAL_DISC} R round the tips' focal points`, () => {
+  // Strip-cell stretch, derived from the model. On the sphere, p = cos d·C + sin d·N has metric
+  // (cos d − kg sin d)² ds² + dd² (Darboux frame: C′ = T, N′ = −kg·T). The flat image
+  // c(s) + tan d·n(s) has metric (1 − κ tan d)² ds² + sec⁴d dd², with flat curvature κ = kg.
+  // So the stretch along the strip is (1 − kg tan d)/(cos d − kg sin d) = sec d exactly (the
+  // flat curvature term cancels against the sphere's, also at the focal distance tan d = 1/kg),
+  // the stretch across it is sec²d, and the two directions stay orthogonal: principal stretches
+  // (sec d, sec²d), in [1, sec²D_EDGE] over band 0 (≈ 1.07 at the body's edge d ≈ 0.258).
+  test(`${tag}: stretch bound: in every strip cell (band + bleed, focal points included) the principal stretches are (sec d, sec²d); within [1, sec²D_edge] over band 0`, () => {
     let lo = Infinity;
     let hi = -Infinity;
     let n = 0;
-    for (const p of bandPoints(14, 8000)) {
-      const pt = un.sphereToStrip(p);
-      if (pt.cell !== 'strip' || nearFocal(p, FOCAL_DISC) || un.edgeDistance(p) < 1e-5) continue;
+    let focal = 0;
+    for (const p of bleedPoints(14, 12000)) {
+      const st = stretches(p);
+      assert.ok(st.det > 0, `p=${p}: det ${st.det}`);
+      if (st.pt.cell !== 'strip' || !st.clean) continue;
       n++;
-      const [a, b] = stretches(p);
-      lo = Math.min(lo, a);
-      hi = Math.max(hi, b);
-    }
-    assert.ok(n > 7000, `${n} samples`);
-    assert.ok(lo >= 0.95 && hi <= 1.05, `measured [${lo}, ${hi}]`);
-  });
-
-  test(`${tag}: stretch characterisation over the whole band, tip cells included (outside the focal discs): orientation-preserving, within the measured range`, () => {
-    let lo = Infinity;
-    let hi = -Infinity;
-    let minDet = Infinity;
-    let tipCells = 0;
-    for (const p of [...bandPoints(15, 12000), ...bandPoints(16, 60000).filter((p) => un.sphereToStrip(p).cell !== 'strip')]) {
-      if (un.edgeDistance(p) < 1e-5 || nearFocal(p, FOCAL_DISC)) continue; // differences must not straddle the cut
-      if (un.sphereToStrip(p).cell !== 'strip') tipCells++;
-      const [a, b, D] = stretches(p);
-      lo = Math.min(lo, a);
-      hi = Math.max(hi, b);
-      minDet = Math.min(minDet, D);
-    }
-    assert.ok(tipCells > 300, `${tipCells} tip-cell samples`);
-    assert.ok(minDet > 0, `Jacobian determinant ${minDet}`);
-    assert.ok(lo >= STRETCH_FULL[0] && hi <= STRETCH_FULL[1], `measured [${lo}, ${hi}]`);
-  });
-
-  test(`${tag}: near the tips' focal points the map stays finite and orientation-preserving; stretch ≤ ${STRETCH_FOCAL} at ${FOCAL_DISC / 2}–${FOCAL_DISC} R`, () => {
-    const r = rng(17);
-    for (const F of focalPoints) {
-      for (let i = 0; i < 2000; i++) {
-        const v = randomPoint(r);
-        const k = dot(v, F);
-        const t = [v[0] - k * F[0], v[1] - k * F[1], v[2] - k * F[2]];
-        const nt = Math.hypot(...t);
-        const rad = FOCAL_DISC * Math.sqrt(r());
-        const p = F.map((x, j) => x * Math.cos(rad) + (t[j] / nt) * Math.sin(rad));
-        const [a, b, D] = stretches(p);
-        assert.ok(Number.isFinite(a) && Number.isFinite(b) && D > 0, `p=${p}`);
-        if (rad > FOCAL_DISC / 2) assert.ok(b <= STRETCH_FOCAL && a >= 1 / STRETCH_FOCAL, `p=${p} at ${rad}: [${a}, ${b}]`);
+      if (focalPoints.some((F) => dist3(p, F) < 0.02)) focal++;
+      const sec = 1 / Math.cos(st.pt.d);
+      assert.ok(Math.abs(st.lo - sec) < 1e-6 && Math.abs(st.hi - sec * sec) < 1e-6, `p=${p} d=${st.pt.d}: [${st.lo}, ${st.hi}] vs [${sec}, ${sec * sec}]`);
+      if (un.edgeDistance(p) > 0) {
+        lo = Math.min(lo, st.lo);
+        hi = Math.max(hi, st.hi);
       }
     }
+    assert.ok(n > 8000 && focal > 3000, `${n} samples, ${focal} near the focal points`);
+    const bound = 1 / Math.cos(D_EDGE) ** 2;
+    assert.ok(lo >= 1 - 1e-6 && hi <= bound + 1e-6, `measured [${lo}, ${hi}], bound sec²(${D_EDGE}) = ${bound}`);
+  });
+
+  // Tip cells: without δ the tip chart is the gnomonic projection about the tip, principal
+  // stretches sec ρ (round the tip) and sec²ρ (radial): within [1, sec²0.23] = [1, 1.055] in
+  // band 0 (tip cells reach ρ = 0.23 on the seam) and [1, sec²0.275] = [1, 1.08] with the bleed.
+  // δ (which moves the chart onto the arm's along the medial axis) adds its own strain; the
+  // measured ranges are pinned.
+  test(`${tag}: tip cells: orientation-preserving (band + bleed); principal stretches within [${STRETCH_TIP_BAND}] in band 0, [${STRETCH_TIP}] with the bleed`, () => {
+    const range = { band: [Infinity, -Infinity], all: [Infinity, -Infinity] };
+    let n = 0;
+    for (const p of bleedPoints(16, 120000)) {
+      if (un.sphereToStrip(p).cell === 'strip') continue;
+      const st = stretches(p);
+      n++;
+      assert.ok(st.det > 0, `p=${p}: det ${st.det}`);
+      for (const key of un.edgeDistance(p) > 0 ? ['band', 'all'] : ['all']) {
+        range[key][0] = Math.min(range[key][0], st.lo);
+        range[key][1] = Math.max(range[key][1], st.hi);
+      }
+    }
+    assert.ok(n > 1000, `${n} tip-cell samples`);
+    const within = ([lo, hi], [a, b]) => lo >= a && hi <= b;
+    assert.ok(within(range.band, STRETCH_TIP_BAND) && within(range.all, STRETCH_TIP), `measured ${JSON.stringify(range)}`);
+  });
+
+  // Area: the outline encloses the image of band 0 (area 2π), so its area / 2π is the mean area
+  // stretch over band 0: sec³d in strip cells (from the stretch bound), the Jacobian in tip cells.
+  test(`${tag}: flat outline area = 2π · mean area stretch over band 0 (sec³d in strip cells)`, () => {
+    const r = rng(18);
+    let sum = 0;
+    let sum2 = 0;
+    let n = 0;
+    while (n < 20000) {
+      const p = randomPoint(r);
+      if (bandOf(p, spiral) !== 0) continue;
+      const pt = un.sphereToStrip(p);
+      const j = pt.cell === 'strip' ? 1 / Math.cos(pt.d) ** 3 : stretches(p).det;
+      sum += j;
+      sum2 += j * j;
+      n++;
+    }
+    const mean = sum / n;
+    const se = Math.sqrt((sum2 / n - mean * mean) / n);
+    const ratio = polygonArea(outline) / (2 * Math.PI);
+    assert.ok(Math.abs(ratio - mean) < 4 * se, `area ratio ${ratio}, mean area stretch ${mean} ± ${se}`);
+  });
+
+  // The tip correction δ makes the tip chart meet the arm's strip chart on the medial axis M
+  // (points equally near the tip and an arm foot s), through band 0 and the bleed.
+  test(`${tag}: tip and strip charts agree on the medial axis within 1e-6 R, through band + bleed`, () => {
+    let n = 0;
+    let outside = 0;
+    let worst = 0;
+    for (const s0 of [0, L]) {
+      const f0 = cl.frame(s0);
+      const out = s0 === 0 ? -1 : 1;
+      const sigma = Math.sign(f0.kg);
+      const tipDist = (p) => Math.acos(Math.min(1, dot(p, f0.C)));
+      for (let u = 0.003; u < 2; u += 0.004) {
+        const s = s0 - out * u;
+        const fr = cl.frame(s);
+        const along = (x) => fr.C.map((c, k) => Math.cos(sigma * x) * c + Math.sin(sigma * x) * fr.N[k]);
+        const kc = sigma * fr.kg;
+        let lo = 0;
+        let hi = kc > 0 ? Math.atan(1 / kc) : Math.PI / 2;
+        if (tipDist(along(hi)) > hi) break; // M has ended
+        for (let k = 0; k < 60; k++) {
+          const mid = 0.5 * (lo + hi);
+          if (tipDist(along(mid)) > mid) lo = mid;
+          else hi = mid;
+        }
+        const x = 0.5 * (lo + hi);
+        const m = along(x);
+        const e = un.edgeDistance(m);
+        if (e < -BLEED) break;
+        if (!(out * dot(m, f0.T) > 0)) continue; // not behind the tip
+        const arm = un.stripToFlat({ cell: 'strip', s, d: sigma * x });
+        const tip = un.stripToFlat({ cell: s0 === 0 ? 'tipN' : 'tipS', s: s0, d: NaN, rho: tipDist(m), alpha: Math.atan2(dot(m, f0.N), dot(m, f0.T)) });
+        const gap = dist2(arm, tip);
+        worst = Math.max(worst, gap);
+        n++;
+        if (e < 0) outside++;
+        assert.ok(gap <= 1e-6, `s0=${s0} u=${u} edge ${e}: charts ${gap} R apart`);
+      }
+    }
+    assert.ok(n > 100 && outside > 5, `${n} medial points, ${outside} in the bleed`);
   });
 }

@@ -5,14 +5,19 @@
 //  - an interior foot s: strip coordinates (s, d), p = cos d·C(s) + sin d·N(s);
 //  - a tip, when p lies behind an end of C and is nearer to it than to any interior foot:
 //    polar coordinates (ρ, α) about the tip, α measured from T(tip) toward N(tip).
-// Strip → flat. C is laid flat with its geodesic curvature (c, t, n), and
-//  - (s, d) ↦ c(s) + d·n(s);
-//  - (ρ, α) ↦ c(tip) + ρ·(cos α·t + sin α·n) + δ(ρ, α).
+// Strip → flat (ruling R15). C is laid flat with its geodesic curvature (c, t, n), and
+//  - (s, d) ↦ c(s) + tan d·n(s);
+//  - (ρ, α) ↦ c(tip) + tan ρ·(cos α·t + sin α·n) + δ(ρ, α).
+// That is the band projected centrally (from the sphere's centre) onto the tangent developable
+// along C, whose rulings run along N and which lies flat onto (c, n) exactly, and behind each tip
+// onto the tip's tangent plane (gnomonic). Stretches: sec d along the strip, sec²d across it, in
+// every strip cell; sphere and flat focal distances coincide (tan d = 1/kg), so the strip chart
+// has no singular point. d and ρ stay sphere geodesic distances everywhere in this API.
 // δ is the tip correction. Near each tip kg reaches 12, so on the concave side the strip
 // cells end on a medial axis M where the tip and a later stretch of C ("the arm") are equally
-// near. The arm's strip chart and the tip's polar chart are both near-isometric but disagree
-// along M (by 0.016 R where M meets the seam, ~0.03 R at the edge of the bleed: the sphere's
-// curvature), so plain closest-point charts tear there and the cut outline gets a notch.
+// near. The arm's strip chart and the tip's gnomonic chart project onto different planes and
+// disagree along M (the sphere's curvature), so plain closest-point charts tear there and the
+// cut outline gets a notch.
 // δ moves the tip chart onto the arm chart along M (values everywhere; also the derivative
 // across M, except near M's start deep inside the band), so the map is continuous, and C¹
 // where the seam crosses M. δ vanishes on the tip's normal rays, where the tip chart meets the
@@ -35,9 +40,13 @@ const MEDIAL_PHASE_MARGIN = 0.45; // (≈ 0.035 R there, the bleed), then the ma
 const V_FADE = 0.2; // arm length over which the derivative match fades in from M's start
 const RAY_FROM = 0.02; // the tip correction runs along circles within this angle of the
 const RAY_FULL = 0.3; // concave normal ray, along rays beyond RAY_FULL, blended between
+const ARM_CHECK = 0.32; // past this |d|, within ARM_ZONE of a tip, a flat foot is checked
+const ARM_ZONE = 2.5; // against every arm of C (see stripValid)
 const FOOT_TOL = 1e-3; // coarse p·C within this of the best is refined as a candidate foot
 const EDGE_EXACT_POLE = 0.5; // edgeDistance is exact within this of a pole…
-const EDGE_EXACT_BAND = 0.1; // …and this of the edge; first order elsewhere
+const EDGE_EXACT_BAND = 0.1; // …and this of the edge; first order elsewhere, blended over
+const EDGE_BLEND_POLE = 0.05; // these widths inside that zone (so it is continuous)
+const EDGE_BLEND_BAND = 0.03;
 
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const clamp1 = (z) => Math.min(1, Math.max(-1, z));
@@ -126,9 +135,11 @@ export function makeUnrolling(spiral, centreLine) {
     return { c: [fX, fY], t: [fCos, fSin], n: [-fSin, fCos], kappa: fKappa };
   }
 
+  // d is the sphere geodesic offset; the flat offset is tan d.
   function toFlat(s, d) {
     evalFlat(s);
-    return [fX - d * fSin, fY + d * fCos];
+    const u = Math.tan(d);
+    return [fX - u * fSin, fY + u * fCos];
   }
 
   function toSphere(s, d) {
@@ -251,10 +262,10 @@ export function makeUnrolling(spiral, centreLine) {
     const flatRadial = (beta) => [Math.cos(beta) * g1[0] + Math.sin(beta) * g2[0], Math.cos(beta) * g1[1] + Math.sin(beta) * g2[1]];
 
     // Medial axis M, tabulated along the arm (u = |s − s0|): on the arm's concave normal, M is
-    // where the distance to the tip equals the distance to the arm. J = arm chart − polar chart
-    // there; V = the same for the derivative along the tip's radial geodesic. M starts at the
-    // tip's focal point (u = 0, β = π/2, ρ = atan(1/|kg|)), first radially, then turns round the
-    // tip; both ρ and β along it are monotone.
+    // where the distance to the tip equals the distance to the arm. J = arm chart − gnomonic
+    // chart there; V = the same for the derivative along the tip's radial geodesic (per unit
+    // ρ). M starts at the tip's focal point (u = 0, β = π/2, ρ = atan(1/|kg|)), first radially,
+    // then turns round the tip; both ρ and β along it are monotone.
     const rows = [{ beta: HALF_PI, rho: Math.atan(1 / Math.abs(f.kg)), J: [0, 0], V: [0, 0] }];
     for (let u = MEDIAL_STEP; u <= TIP_ZONE; u += MEDIAL_STEP) {
       const s = s0 - out * u;
@@ -298,22 +309,26 @@ export function makeUnrolling(spiral, centreLine) {
       if (!(beta < last.beta && rho > last.rho)) break;
       const arm = toFlat(s, d);
       const ur = flatRadial(beta);
-      const J = [arm[0] - (c0[0] + rho * ur[0]), arm[1] - (c0[1] + rho * ur[1])];
-      // Radial geodesic direction at m in the arm's (∂s, ∂d) basis, mapped to the flat.
+      const tr = Math.tan(rho);
+      const J = [arm[0] - (c0[0] + tr * ur[0]), arm[1] - (c0[1] + tr * ur[1])];
+      // Radial geodesic direction er at m, split into the arm's ∂s (stretch sec d: the flat
+      // (1 − κ tan d) over the sphere's cos d − kg sin d) and ∂d (stretch sec²d), in the flat;
+      // the gnomonic chart's own radial derivative is sec²ρ·ur.
       const er = [0, 1, 2].map((k) => (Math.cos(rho) * m[k] - C0[k]) / Math.sin(rho));
       const cd = Math.cos(d);
       const sd = Math.sin(d);
-      const a = dot(er, fr.T) / (cd - fr.kg * sd);
-      const b = -sd * dot(er, fr.C) + cd * dot(er, fr.N);
+      const a = dot(er, fr.T) / cd;
+      const b = (-sd * dot(er, fr.C) + cd * dot(er, fr.N)) / (cd * cd);
       const fl = flatFrame(s);
-      const dF = [0, 1].map((k) => a * (1 - fl.kappa * d) * fl.t[k] + b * fl.n[k]);
-      // The arm chart is singular at the focal point where M starts, so V fades in from there.
+      const dF = [0, 1].map((k) => a * fl.t[k] + b * fl.n[k]);
+      const g = 1 + tr * tr;
+      // The arm's foot moves fast near the focal point where M starts, so V fades in from there.
       // Past the bleed (M's phase beyond the edge by BLEED_PHASE) the correction fades out
       // along M: the match there would only serve band 1.
       const excess = Math.abs(bandPhase(m, spiral)) - HALF_PI;
       const keep = 1 - smoothstep((excess - BLEED_PHASE) / (MEDIAL_PHASE_MARGIN - BLEED_PHASE));
       const w = keep * smoothstep(u / V_FADE);
-      rows.push({ beta, rho, J: [keep * J[0], keep * J[1]], V: [w * (dF[0] - ur[0]), w * (dF[1] - ur[1])] });
+      rows.push({ beta, rho, J: [keep * J[0], keep * J[1]], V: [w * (dF[0] - g * ur[0]), w * (dF[1] - g * ur[1])] });
       if (keep === 0) break;
     }
 
@@ -340,8 +355,10 @@ export function makeUnrolling(spiral, centreLine) {
     // exact on M: along rays from the tip (with the V term; C¹ across M) and along circles about
     // the tip. Near M's start, M runs radially, so rays are nearly tangent to it and the ray
     // extension is steep; there the circle extension takes over (C⁰ across M; M is well inside
-    // the band there). The ray extension fades out towards the tip (inside half of ρ_M); the
-    // circle extension is zero inside ρ_F.
+    // the band there). The ray extension fades in from the tip over the whole of [0, ρ_M]
+    // (smoothstep, flat at M so C¹ holds; fading over half of it, as in the d model, strained the
+    // tip end up to 1.16 in band 0 and 0.50–1.27 in the bleed); the circle extension is zero
+    // inside ρ_F.
     function correction(rho, beta) {
       if (!(Math.abs(beta) < HALF_PI)) return [0, 0];
       const lambda = smoothstep((HALF_PI - beta - RAY_FROM) / (RAY_FULL - RAY_FROM));
@@ -349,7 +366,7 @@ export function makeUnrolling(spiral, centreLine) {
       let y = 0;
       if (lambda > 0) {
         const M = medialAt('beta', beta);
-        const k = lambda * smoothstep(rho / (0.5 * M.rho));
+        const k = lambda * smoothstep(rho / M.rho);
         const r = rho - M.rho;
         x += k * (M.J[0] + M.V[0] * r);
         y += k * (M.J[1] + M.V[1] * r);
@@ -365,13 +382,14 @@ export function makeUnrolling(spiral, centreLine) {
     function flatAt(rho, beta) {
       const ur = flatRadial(beta);
       const dl = correction(rho, beta);
-      return [c0[0] + rho * ur[0] + dl[0], c0[1] + rho * ur[1] + dl[1]];
+      const tr = Math.tan(rho);
+      return [c0[0] + tr * ur[0] + dl[0], c0[1] + tr * ur[1] + dl[1]];
     }
 
-    // Inverse of flatAt: Newton in the tip's polar plane (X, Y) = ρ(cos β, sin β), with a
-    // finite-difference Jacobian, from the plain polar inverse.
+    // Inverse of flatAt: Newton in the tip's gnomonic plane (X, Y) = tan ρ·(cos β, sin β), with
+    // a finite-difference Jacobian, from the plain gnomonic inverse.
     function fromFlat(x, y) {
-      const at = (X, Y) => flatAt(Math.hypot(X, Y), Math.atan2(Y, X));
+      const at = (X, Y) => flatAt(Math.atan(Math.hypot(X, Y)), Math.atan2(Y, X));
       let X = (x - c0[0]) * g1[0] + (y - c0[1]) * g1[1];
       let Y = (x - c0[0]) * g2[0] + (y - c0[1]) * g2[1];
       const e = 1e-7;
@@ -387,7 +405,7 @@ export function makeUnrolling(spiral, centreLine) {
         const b = (Fy[0] - F[0]) / e;
         const d = (Fy[1] - F[1]) / e;
         const det = a * d - b * c;
-        if (!(Math.abs(det) > 1e-9)) return { rho: Math.hypot(X, Y), beta: Math.atan2(Y, X), ok: false };
+        if (!(Math.abs(det) > 1e-9)) return { rho: Math.atan(Math.hypot(X, Y)), beta: Math.atan2(Y, X), ok: false };
         const dX = (d * rx - b * ry) / det;
         const dY = (a * ry - c * rx) / det;
         X -= dX;
@@ -396,7 +414,7 @@ export function makeUnrolling(spiral, centreLine) {
       }
       const F = at(X, Y);
       const ok = Math.hypot(F[0] - x, F[1] - y) < 1e-12;
-      return { rho: Math.hypot(X, Y), beta: Math.atan2(Y, X), ok };
+      return { rho: Math.atan(Math.hypot(X, Y)), beta: Math.atan2(Y, X), ok };
     }
 
     // α (from T toward N, the ruling's convention) ↔ β.
@@ -441,13 +459,19 @@ export function makeUnrolling(spiral, centreLine) {
   }
 
   // A flat foot (s, d) is the image of a sphere strip point iff that point's nearest foot is s:
-  // it must be a maximum of p·C (inside the sphere focal distance) and not nearer to a tip.
-  // Elsewhere on C there is no medial axis within REACH, so any flat foot qualifies.
+  // it must be a maximum of p·C (inside the sphere focal distance), not nearer to a tip, and not
+  // nearer to another arm of C. Medial axes between two arms come within REACH of C only for
+  // feet within 2.22 of a tip, and there no nearer than 0.38 (Clelia 6, measured); band + bleed
+  // reach |d| ≤ 0.30, so that full check runs only for pixels well outside the piece.
   function stripValid(s, d, kappa) {
+    if (Math.abs(d) > ARM_CHECK && Math.min(s, length - s) < ARM_ZONE) {
+      const foot = interiorFoot(toSphere(s, d), s);
+      if (foot && Math.abs(foot.d) < Math.abs(d) - 1e-12) return false;
+    }
     for (const tip of tips) {
       if (Math.abs(s - tip.s0) > TIP_ZONE) continue;
-      // Focal check, only where it can fail (|kappa·d| = |kg·d| ≥ 1 there).
-      if (Math.abs(kappa * d) > 0.9 && !(Math.cos(d) - frame(s).kg * Math.sin(d) > 0)) return false;
+      // Focal check, only where it can fail (kg·tan d ≥ 1 there; flat and sphere foci coincide).
+      if (Math.abs(kappa * Math.tan(d)) > 0.9 && !(Math.cos(d) - frame(s).kg * Math.sin(d) > 0)) return false;
       // The tip can only be nearer than the foot if C(s) is within 2|d| of it (the tips sit
       // at the poles, within 1e-9).
       const theta = thetaAt(s);
@@ -501,8 +525,9 @@ export function makeUnrolling(spiral, centreLine) {
     return a >= 0 && b >= 0 && a < gw && b < gh ? cellRuns[b * gw + a] : null;
   };
 
-  // Nearest point of the flat centre line near s0: Newton on g = (q − c)·t, slope −1 + κ·d,
-  // bracketed in [lo, hi] when given. Returns null if it does not converge to a minimum.
+  // Nearest point of the flat centre line near s0: Newton on g = (q − c)·t, slope −1 + κ·u
+  // (u = flat offset), bracketed in [lo, hi] when given. Returns the foot with the sphere offset
+  // d = atan u, or null if it does not converge to a minimum.
   function flatFoot(x, y, s0, lo, hi, maxIt) {
     let s = s0;
     let a = lo;
@@ -512,11 +537,13 @@ export function makeUnrolling(spiral, centreLine) {
       const qx = x - fX;
       const qy = y - fY;
       const g = qx * fCos + qy * fSin;
-      const d = qy * fCos - qx * fSin;
+      const u = qy * fCos - qx * fSin;
       const kappa = fKappa;
-      const gp = -1 + kappa * d;
+      const gp = -1 + kappa * u;
+      // g falls through 0 at a minimum. g = 0 exactly at a maximum (a tip's own foot, for a
+      // point exactly on its normal past the focal point) says nothing about the side.
       if (g > 0) a = s;
-      else b = s;
+      else if (g < 0 || gp < 0) b = s;
       let next = gp < 0 ? s - g / gp : NaN;
       if (Number.isFinite(a) && Number.isFinite(b)) {
         if (!(next >= a && next <= b)) next = 0.5 * (a + b);
@@ -527,7 +554,7 @@ export function makeUnrolling(spiral, centreLine) {
         // Converged: s is within 1e-12 of the root, so (s, d) reproduces q to ~1e-12·|g′|.
         if (!(s >= 0 && s <= length) || !(gp < 0)) return null;
         if ((s <= 0 || s >= length) && Math.abs(g) > 1e-9) return null;
-        return { s, d, kappa, dist: Math.hypot(qx, qy) };
+        return { s, d: Math.atan(u), kappa, dist: Math.hypot(qx, qy) };
       }
       s = next;
     }
@@ -577,22 +604,27 @@ export function makeUnrolling(spiral, centreLine) {
       if (!foot || rho <= Math.abs(foot.d) + 1e-12) return tipPoint(tip, rho, beta);
     }
     // No consistent preimage: only where the forward map is discontinuous, far out in band 1
-    // past the end of the tip correction. Fall back to the nearest flat foot.
-    if (feet.length) return { cell: 'strip', s: feet[0].s, d: feet[0].d, ok: true };
+    // past the end of the tip correction. ok = false; s, d are the nearest flat foot (a usable
+    // guess for the next pixel), not a preimage.
+    if (feet.length) return { cell: 'strip', s: feet[0].s, d: feet[0].d, ok: false };
     return fail;
   }
 
   // ---- Band edge ----------------------------------------------------------------------------
   // Signed geodesic distance (R units) from p to the edge of band 0, positive inside. Away from
   // the poles: the phase margin over |∇phase| = √(1 + λ′² sin²θ) / sinθ (exact on the edge,
-  // first order off it, within 1.5% up to 0.04 R from it). Flat distances differ from it by the
-  // local stretch across the edge.
+  // first order off it, within 1.5% up to 0.04 R from it). It is a sphere distance: across the
+  // edge the flat map stretches by sec²d (strip cells; ≈ 1.07 at the body's edge), so a flat
+  // distance there is ≈ sec²d·edgeDistance.
   function edgeDistance(p) {
     const theta = Math.acos(clamp1(p[2]));
     const st = Math.sin(theta);
     const dl = spiral.dLambda(theta);
     const first = ((HALF_PI - Math.abs(bandPhase(p, spiral))) * st) / Math.sqrt(1 + dl * dl * st * st);
-    if (Math.min(theta, Math.PI - theta) > EDGE_EXACT_POLE || Math.abs(first) > EDGE_EXACT_BAND) return first;
+    const w =
+      smoothstep((EDGE_EXACT_POLE - Math.min(theta, Math.PI - theta)) / EDGE_BLEND_POLE) *
+      smoothstep((EDGE_EXACT_BAND - Math.abs(first)) / EDGE_BLEND_BAND);
+    if (w === 0) return first;
     // Near the poles the seams curl tightly and meet, so measure the distance to them
     // exactly: each seam is C rotated by ±π/2 about z, and its ends are the poles.
     const toSeam = (q) => {
@@ -600,7 +632,7 @@ export function makeUnrolling(spiral, centreLine) {
       return Math.min(foot ? Math.abs(foot.d) : Infinity, theta, Math.PI - theta);
     };
     const dist = Math.min(toSeam([p[1], -p[0], p[2]]), toSeam([-p[1], p[0], p[2]]));
-    return first < 0 ? -dist : dist;
+    return first + w * ((first < 0 ? -dist : dist) - first);
   }
 
   // Flat seams from the north tip to the south tip: the images of the sphere seams
