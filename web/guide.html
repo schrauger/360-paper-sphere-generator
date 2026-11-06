@@ -23,7 +23,7 @@
     <p>With a cutting machine you don't need it. Turn <strong>Cut outline</strong> off: the machine cuts from the cut file, and a printed line can show at the edge if the cut is a hair off.</p>
 
     <h2>Cutting machine: Silhouette, SVG cut file</h2>
-    <p>Silhouette Studio opens SVG files only in Designer Edition or higher (Designer, Designer Plus, Business). The free Basic Edition can't open SVG, but it opens the DXF cut file and .studio3 files.</p>
+    <p>Silhouette Studio opens SVG files only in Designer Edition or higher (Designer, Designer Plus, Business). The free Basic Edition can't open SVG, but it opens the DXF cut file (see below) and .studio3 files.</p>
     <ol>
       <li>In the app, set <strong>Cutter marks</strong> to Silhouette and <strong>Cut file download</strong> to SVG.</li>
       <li>Download the sheet (the PDF) and the SVG cut file.</li>
@@ -38,8 +38,22 @@
     <h2>Silhouette .studio3 files</h2>
     <p>For Letter paper, the listed sphere sizes and "As many as fit", choose <strong>.studio3 (Silhouette)</strong> as the cut file. The app sets the cutter marks and sphere count for you and flags any setting that doesn't fit. Open the file in Silhouette Studio, load the printed sheet and cut. No positioning is needed. The files are being added size by size; until a size has one, the app says so and you can use the SVG cut file instead.</p>
 
-    <h2>Ties and DXF</h2>
-    <p>Ties are optional small bridges that keep the tabs attached on the mat, so you can pop the pieces out afterwards. DXF is the cut file for programs that don't read SVG, including Silhouette Studio Basic Edition.</p>
+    <h2>Cutting machine: Silhouette Basic Edition, DXF cut file</h2>
+    <p>The free Basic Edition can't open SVG, so use the DXF cut file. DXF files don't carry their size in a way Silhouette Studio reads, so Studio shrinks the drawing to fit its page when it opens it. Set the size back by hand:</p>
+    <ol>
+      <li>In the app, set <strong>Cutter marks</strong> to Silhouette and <strong>Cut file download</strong> to DXF.</li>
+      <li>Download the sheet (the PDF) and the DXF cut file.</li>
+      <li>Print the PDF at 100% (Actual size).</li>
+      <li>Open the DXF in Silhouette Studio.</li>
+      <li>Select all the objects and Group them.</li>
+      <li>In the Transform panel, lock the aspect ratio and set the group's size to the page size minus 19.5 mm each way: for Letter, W 196.4 mm and H 259.9 mm (A4: 190.5 × 277.5 mm; 8×10 in: 183.7 × 234.5 mm). The group's outer edge is the outer edge of the black registration marks, 9.75 mm in from each page edge.</li>
+      <li>Set the group's position to X 9.75 mm and Y 9.75 mm.</li>
+      <li>Turn on registration marks and set the inset to 10 mm.</li>
+      <li>Load the printed sheet into the machine and cut.</li>
+    </ol>
+
+    <h2>Ties</h2>
+    <p>Ties are optional small bridges that keep the tabs attached on the mat, so you can pop the pieces out afterwards. They work with both the SVG and DXF cut files.</p>
 
     <p><a class="back" href="index.html">Back to the app</a></p>
   </main>
