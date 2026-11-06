@@ -102,3 +102,28 @@ test('bad copies value is rejected', () => {
   assert.throws(() => lay({ diameterMm: 40, copies: 0 }), RangeError);
   assert.throws(() => lay({ diameterMm: 40, copies: 1.5 }), RangeError);
 });
+
+test('tiny spheres are capped at 60 copies and laid out quickly, with or without marks', () => {
+  for (const marks of ['none', 'silhouette']) {
+    for (const d of [2, 1]) {
+      const t = Date.now();
+      const l = lay({ marks, diameterMm: d });
+      assert.ok(Date.now() - t < 5000, `${d} mm ${marks} took ${Date.now() - t} ms`);
+      assert.ok(l.copies <= 60 && l.pieces.length === 2 * l.copies, `${l.copies}`);
+      assert.equal(l.copies, 60);
+    }
+  }
+});
+
+test('more than 60 copies is rejected', () => {
+  assert.throws(() => lay({ diameterMm: 40, copies: 61 }), RangeError);
+});
+
+test('an exact count that does not fit encloses a grid in the smaller of the two orientations', () => {
+  const l = lay({ diameterMm: 50, copies: 3 });
+  assert.equal(l.copies, 3);
+  assert.match(l.warnings[0], /3 spheres of 50 mm do not fit/);
+  const xs = cutsMm(l).flat();
+  const ext = (k) => Math.max(...xs.map((p) => p[k])) - Math.min(...xs.map((p) => p[k]));
+  assert.ok(ext(0) <= l.widthPx * mmPerPx && ext(1) <= l.heightPx * mmPerPx);
+});

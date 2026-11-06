@@ -101,6 +101,12 @@ async function showStudio3() {
     status.replaceChildren();
     return;
   }
+  if ($('copies').value !== 'max') {
+    // The committed files are made with the maximum number of spheres per sheet.
+    status.textContent = 'The Silhouette cut file matches "As many as fit" only; the SVG and DXF cut files work with any count.';
+    status.hidden = false;
+    return;
+  }
   const path = studio3Path('letter', Number(mode.slice('preset-'.length)));
   const exists = await hasStudio3(path);
   if (token !== studio3Token) return;
@@ -489,7 +495,7 @@ let downloadUrls = [];
 /** { url, name } of the chosen preset's .studio3 when ".studio3 (Silhouette)" is chosen and the file exists, else null. */
 async function studio3Choice() {
   const mode = $('diameterMode').value;
-  if ($('cutFile').value !== 'studio3' || !isPresetMode(mode)) return null;
+  if ($('cutFile').value !== 'studio3' || !isPresetMode(mode) || $('copies').value !== 'max') return null;
   const path = studio3Path('letter', Number(mode.slice('preset-'.length)));
   if (!(await hasStudio3(path))) return null;
   return { url: new URL(`../${path}`, import.meta.url).href, name: path.split('/').pop() };

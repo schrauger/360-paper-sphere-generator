@@ -1,5 +1,6 @@
 // Option normalisation shared by the CLI and the web app. Pure: no node-only imports.
 import { TIE_WIDTH_MM, TIE_WIDTH_RANGE_MM } from './export/ties.js';
+import { MAX_COPIES } from './layout/pack.js';
 
 /** Page sizes in mm, [width, height]. */
 export const PAGE_SIZES = { letter: [215.9, 279.4], a4: [210, 297], a3: [297, 420], tabloid: [279.4, 431.8] };
@@ -52,11 +53,12 @@ function parseBleed(bleed) {
   return mm;
 }
 
-// Spheres per sheet: 'max' (as many as fit) or a whole number ≥ 1.
+// Spheres per sheet: 'max' (as many as fit) or a whole number from 1 to MAX_COPIES.
 function parseCopies(copies) {
   if (!given(copies) || copies === 'max') return 'max';
   const n = num(copies, '--copies');
-  if (!Number.isInteger(n) || n < 1) throw new OptionError(`--copies must be max or a whole number ≥ 1 (got ${copies})`);
+  if (!Number.isInteger(n) || n < 1) throw new OptionError(`--copies must be max or a whole number from 1 to ${MAX_COPIES} (got ${copies})`);
+  if (n > MAX_COPIES) throw new OptionError(`--copies must be at most ${MAX_COPIES} (got ${copies})`);
   return n;
 }
 

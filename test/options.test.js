@@ -85,5 +85,6 @@ test('copies: max by default, whole numbers ≥ 1 otherwise', () => {
   assert.equal(normalizeOptions({ copies: 'max' }).copies, 'max');
   assert.equal(normalizeOptions({ copies: '3' }).copies, 3);
   assert.equal(normalizeOptions({ copies: '' }).copies, 'max');
-  for (const bad of ['0', '1.5', '-2', 'many']) assert.throws(() => normalizeOptions({ copies: bad }), /--copies/, bad);
+  assert.equal(normalizeOptions({ copies: '60' }).copies, 60);
+  for (const bad of ['0', '1.5', '-2', 'many', '61']) assert.throws(() => normalizeOptions({ copies: bad }), /--copies/, bad);
 });

@@ -9,10 +9,9 @@
 // The unrolling tears ≈ 0.034 R outside the edge near the tips, so bleedR is clamped to
 // MAX_BLEED_R (with a warning).
 import { directionToEquirect, mul, rotationFromYPR, rotZ } from '../sphere/orient.js';
-import { blend } from './raster.js';
+import { blend, transformPts } from './raster.js';
 import { buildGuide } from './guide.js';
 import { sampleEquirect } from './sample.js';
-import { transformPts } from './raster.js';
 
 /** Widest bleed (sphere R units) the unrolling supports without tearing near the tips. */
 export const MAX_BLEED_R = 0.03;

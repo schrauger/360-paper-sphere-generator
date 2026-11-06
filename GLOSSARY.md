@@ -45,7 +45,7 @@ The printable page carrying the pieces of one or more spheres and any registrati
 _Avoid_: output, canvas, page image
 
 **Copies**:
-The number of spheres (pairs of pieces) on one sheet. With a chosen diameter the default is as many as fit, laid out on a grid whose neighbouring cut paths stay 3 mm apart (a pair may be turned 90° and nest); the largest-that-fits diameter is always one pair.
+The number of spheres (pairs of pieces) on one sheet. With a chosen diameter the default is as many as fit in a grid (at most 60), laid out on a grid whose neighbouring cut paths stay 3 mm apart (a pair may be turned 90° and nest); the largest-that-fits diameter is always one pair.
 _Avoid_: repeats, duplicates, count
 
 **Tab**:

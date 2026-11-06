@@ -52,7 +52,7 @@ anything else is an error.
 | `--page letter\|a4\|a3\|tabloid\|<W>x<H>mm` | Page size (default `letter`). |
 | `--dpi N` | 72–1200 (default 300). |
 | `--diameter MM` | Sphere diameter (default: the largest that fits the page). |
-| `--copies max\|N` | Spheres per sheet, with `--diameter` (default `max`: as many pairs as fit; the largest-that-fits size is always one pair). A pair may be turned 90° and neighbouring pairs nest, keeping their cut lines 3 mm apart. `N` places exactly N, enlarging the sheet (with a warning) if they do not fit. |
+| `--copies max\|N` | Spheres per sheet, with `--diameter` (default `max`: as many pairs as fit in a grid, up to 60 (a heuristic, not a proven maximum); the largest-that-fits size is always one pair). A pair may be turned 90° and neighbouring pairs nest, keeping their cut lines 3 mm apart. `N` (1–60) places exactly N, enlarging the sheet (with a warning) if they do not fit. |
 | `--margin MM` | Margin around the sheet (default 6.35). Ignored with `--marks silhouette`, which uses 10 mm. |
 | `--outline`, `--no-outline` | Draw the cut outline (default on). |
 | `--bleed MM\|auto\|off` | Image printed past the cut line (default `auto`, 360craft's bleed; `off` for none). |
@@ -71,7 +71,7 @@ fit to page), open the `.studio3` in Silhouette Studio, load the printed sheet a
 live in [`studio3/`](studio3/README.md) and are added size by size as they are made (none exist yet); if
 one is missing for a size, the web app says so and you can use the SVG cut file instead.
 
-The `.studio3` files are made with the maximum number of spheres per sheet for their size (2 at 40 and 45 mm on Letter, 1 above) and without ties; add your own in Studio, or generate the SVGs they come from with `node tools/silhouette-presets.mjs <dir> --ties`. The SVG and DXF cut files from the web app and CLI can include ties (`--ties`).
+The `.studio3` files are made with "as many as fit" spheres per sheet for their size (the web app offers them only with that choice) (2 at 40 and 45 mm on Letter, 1 above) and without ties; add your own in Studio, or generate the SVGs they come from with `node tools/silhouette-presets.mjs <dir> --ties`. The SVG and DXF cut files from the web app and CLI can include ties (`--ties`).
 
 `node cli.js --help` prints the same list. Node ≥ 22 is needed to run the tests (`npm test`); the
 package itself runs on Node ≥ 20.

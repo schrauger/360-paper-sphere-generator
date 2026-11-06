@@ -1,7 +1,7 @@
 // Sheet layout: the two 360craft presets, or any page size with an optional sphere diameter and
 // Silhouette registration marks.
 import { pieceAffine } from '../model/360craft.js';
-import { gridCandidates, gridPositions, packCopies, pairArea } from './pack.js';
+import { MAX_COPIES, gridCandidates, gridPositions, packCopies, pairArea } from './pack.js';
 
 const PRESETS = { 'original-low': 1, 'original-high': 2 }; // × the original-low sheet
 const MM_PER_IN = 25.4;
@@ -38,7 +38,7 @@ function candidatesFor(outline, pieceMm, diameterMm) {
  * the sheet is then enlarged, with a warning, if the sphere does not fit) and centred.
  * marks: 'none' | 'silhouette' (entries in px, x/y = the mark's outer corner). With marks the
  * margin is 10 mm on every side automatically and `marginMm` is ignored.
- * copies: 'max' | N. With a `diameterMm`, as many pairs as fit (or exactly N; the sheet is enlarged,
+ * copies: 'max' | N (≤ 60). With a `diameterMm`, as many pairs as fit in a grid (or exactly N; the sheet is enlarged,
  * with a warning, if N do not fit) are packed on a grid; without one the layout is the single
  * largest pair. `copies` in the result is the number of pairs; `pieces` holds each pair's two
  * pieces in turn.
@@ -47,7 +47,7 @@ export function layoutSheet(model, outline, { preset, page, dpi = 300, diameterM
   if (preset !== undefined || !page) return presetLayout(model, preset, dpi);
   if (!(dpi >= 72 && dpi <= 1200)) throw new RangeError('DPI must be between 72 and 1200');
   if (!(marginMm >= 0) || !Number.isFinite(marginMm)) throw new RangeError('Margin must be a finite number of mm ≥ 0');
-  if (copies !== 'max' && !(Number.isInteger(copies) && copies >= 1)) throw new RangeError('Copies must be max or a whole number ≥ 1');
+  if (copies !== 'max' && !(Number.isInteger(copies) && copies >= 1 && copies <= MAX_COPIES)) throw new RangeError(`Copies must be max or a whole number from 1 to ${MAX_COPIES}`);
   if (marks !== 'none' && marks !== 'silhouette') throw new RangeError(`Unknown marks: ${marks}. Use none or silhouette`);
   const pxPerMm = dpi / MM_PER_IN;
   checkSheetSize(page.widthMm * pxPerMm, page.heightMm * pxPerMm);
@@ -131,9 +131,16 @@ export function layoutSheet(model, outline, { preset, page, dpi = 300, diameterM
     if (copies !== 'max' && copies > 1 && (!packed || packed.copies !== copies)) {
       // N pairs do not fit: grow the sheet around a near-square grid of them.
       packed = null;
-      const c = candidates()[0];
-      const cols = Math.ceil(Math.sqrt(copies));
-      const { centres, box } = gridPositions(c, cols, Math.ceil(copies / cols), copies);
+      // The smallest sheet over both orientations and every column count (squarer on a tie).
+      let grid = null;
+      for (const c of candidates()) {
+        for (let cols = 1; cols <= copies; cols++) {
+          const g = gridPositions(c, cols, Math.ceil(copies / cols), copies);
+          const [w, h] = [g.box[2] - g.box[0], g.box[3] - g.box[1]];
+          if (!grid || w * h < grid.area - 1e-6 || (Math.abs(w * h - grid.area) <= 1e-6 && Math.abs(w - h) < grid.skew)) grid = { ...g, area: w * h, skew: Math.abs(w - h), rot90: c.rot90 };
+        }
+      }
+      const { centres, box } = grid;
       const pad = silhouette ? MARK_INSET_MM + LEG_MM + CLEARANCE_MM : marginMm;
       const newW = box[2] - box[0] + 2 * pad;
       const newH = box[3] - box[1] + 2 * pad;
@@ -142,7 +149,7 @@ export function layoutSheet(model, outline, { preset, page, dpi = 300, diameterM
       heightMm = newH;
       rect = rectMm(widthMm, heightMm);
       checkSheetSize(widthMm * pxPerMm, heightMm * pxPerMm);
-      packed = { copies, rot90: false, centres: centres.map(([x, y]) => [x - box[0] + pad, y - box[1] + pad]) };
+      packed = { copies, rot90: grid.rot90, centres: centres.map(([x, y]) => [x - box[0] + pad, y - box[1] + pad]) };
     } else if (!packed && !fits(pxPerR, rect, boxes)) {
       // Grow the sheet to the arrangement plus margins; with marks, the arrangement clears the
       // marks' legs and the clearance on every side (the legs reach MARK_INSET + LEG from the edge).
