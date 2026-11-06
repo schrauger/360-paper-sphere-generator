@@ -22,7 +22,7 @@ export function transformPts(pts, [a, b, c, d, e, f]) {
 }
 
 // Source-over blend of `rgb` at alpha `a` (0..1) into pixel offset `o`.
-function blend(data, o, rgb, a) {
+export function blend(data, o, rgb, a) {
   if (a <= 0) return;
   const da = data[o + 3] / 255;
   const oa = a + da * (1 - a);

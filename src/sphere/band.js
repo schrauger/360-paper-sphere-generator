@@ -103,9 +103,18 @@ export function makeCentreLine(spiral, { samples = 20000 } = {}) {
     return [d[0] / k, d[1] / k, d[2] / k];
   };
 
+  // Same pole nudge as dCdTheta so C and T are exactly perpendicular at the tips.
+  const nudgedTheta = (s) => Math.min(Math.max(thetaAt(s), 1e-9), Math.PI - 1e-9);
+
+  /** { C, N } at arc length s: frame(s) without T and kg (the renderer's per-pixel path). */
+  function basis(s) {
+    const t = nudgedTheta(s);
+    const C = pointAt(t, spiral.lambda(t));
+    return { C, N: cross(C, tangent(t)) };
+  }
+
   function frame(s) {
-    // Same pole nudge as dCdTheta so C and T are exactly perpendicular at the tips.
-    const t = Math.min(Math.max(thetaAt(s), 1e-9), Math.PI - 1e-9);
+    const t = nudgedTheta(s);
     const C = pointAt(t, spiral.lambda(t));
     const T = tangent(t);
     const N = cross(C, T);
@@ -131,5 +140,5 @@ export function makeCentreLine(spiral, { samples = 20000 } = {}) {
     return { C, T, N, kg };
   }
 
-  return { length, thetaAt, sOfTheta, frame };
+  return { length, thetaAt, sOfTheta, frame, basis };
 }

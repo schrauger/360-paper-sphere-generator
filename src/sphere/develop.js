@@ -53,7 +53,7 @@ const clamp1 = (z) => Math.min(1, Math.max(-1, z));
 const smoothstep = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 
 export function makeUnrolling(spiral, centreLine) {
-  const { length, thetaAt, sOfTheta, frame } = centreLine;
+  const { length, thetaAt, sOfTheta, frame, basis } = centreLine;
 
   // ---- Flat centre line ------------------------------------------------------------------
   // Node tables on the uniform θ grid: arc length, curvature, heading, flat position.
@@ -143,7 +143,7 @@ export function makeUnrolling(spiral, centreLine) {
   }
 
   function toSphere(s, d) {
-    const { C, N } = frame(s);
+    const { C, N } = basis(s);
     const cd = Math.cos(d);
     const sd = Math.sin(d);
     return [cd * C[0] + sd * N[0], cd * C[1] + sd * N[1], cd * C[2] + sd * N[2]];
@@ -564,15 +564,16 @@ export function makeUnrolling(spiral, centreLine) {
   // Exact inverse of the forward map. With a good sGuess (a neighbouring pixel's s) this is a
   // few Newton steps; otherwise every flat foot from the lookup grid is tried, then the tips.
   function flatToStrip(x, y, sGuess) {
-    const fail = { cell: 'strip', s: Number.isFinite(sGuess) ? Math.min(Math.max(sGuess, 0), length) : 0, d: 0, ok: false };
+    const fail = () => ({ cell: 'strip', s: Number.isFinite(sGuess) ? Math.min(Math.max(sGuess, 0), length) : 0, d: 0, ok: false });
     const runs = cellAt(x, y);
-    if (!runs || runs.length === 0) return fail;
+    if (!runs || runs.length === 0) return fail();
     if (Number.isFinite(sGuess)) {
       const g = Math.min(Math.max(sGuess, 0), length);
       const j = sampleIndex(g);
-      if (runs.some(([a, b]) => j >= a - 1 && j <= b + 1)) {
+      // runs.length === 1 is the only case the guess can settle (below).
+      if (runs.length === 1 && j >= runs[0][0] - 1 && j <= runs[0][1] + 1) {
         const foot = flatFoot(x, y, g, -Infinity, Infinity, 8);
-        if (foot && foot.dist <= REACH && runs.length === 1 && stripValid(foot.s, foot.d, foot.kappa)) {
+        if (foot && foot.dist <= REACH && stripValid(foot.s, foot.d, foot.kappa)) {
           return { cell: 'strip', s: foot.s, d: foot.d, ok: true };
         }
       }
@@ -607,7 +608,7 @@ export function makeUnrolling(spiral, centreLine) {
     // past the end of the tip correction. ok = false; s, d are the nearest flat foot (a usable
     // guess for the next pixel), not a preimage.
     if (feet.length) return { cell: 'strip', s: feet[0].s, d: feet[0].d, ok: false };
-    return fail;
+    return fail();
   }
 
   // ---- Band edge ----------------------------------------------------------------------------
