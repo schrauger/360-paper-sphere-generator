@@ -2,6 +2,7 @@
 // → registration marks.
 import { createImage, fillPolygons, strokePolyline, transformPts } from './raster.js';
 import { renderPieces } from './warp.js';
+import { drawMarks } from './marks.js';
 
 /**
  * RGBAImage of the sheet in `layout`. pano: the panorama (RGBAImage); geometry: makeModelGeometry(model);
@@ -22,6 +23,6 @@ export function composeSheet(pano, layout, geometry, model, { outline = true, bl
       strokePolyline(img, transformPts(pieceOutline.cutPath, affine), width, style.outlineColor, { closed: true });
     }
   }
-  // layout.marks: drawn by T11.
+  drawMarks(img, layout.marks);
   return img;
 }

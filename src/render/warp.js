@@ -31,12 +31,12 @@ export function totalRotation(model, ypr) {
  * bleedR above MAX_BLEED_R is clamped, with a message in `warnings`.
  */
 export function makePixelMapper(layout, geometry, { bleedR = 0 } = {}) {
+  if (!Number.isFinite(bleedR) || bleedR < 0) throw new RangeError(`bleedR must be a finite number ≥ 0 (got ${bleedR})`);
   const warnings = [];
   if (bleedR > MAX_BLEED_R) {
     warnings.push(`Bleed ${bleedR} R is wider than the supported ${MAX_BLEED_R} R; using ${MAX_BLEED_R} R`);
     bleedR = MAX_BLEED_R;
   }
-  bleedR = Math.max(0, bleedR);
   const { unrolling } = geometry;
   const { length } = unrolling;
   const { pxPerR } = layout;

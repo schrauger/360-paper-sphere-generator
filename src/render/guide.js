@@ -12,6 +12,7 @@ import { transformPts } from './raster.js';
 const FLAT_STRETCH = 1.25; // ≥ flat/sphere distance ratio across the edge (sec²d ≈ 1.07 at the body)
 const AA_PX = 1; // the alpha ramp reaches 0.5 px (sheet) outside the edge; 1 px of slack
 const D_MAX = 0.3; // |d| of the band edge plus bleed (develop.js); s guesses are sampled within it
+const MAX_PIECES = 8; // the per-cell masks are Uint8Array bitmasks
 const INTERIOR_PX = 3; // an interior cell is at least this far inside the edge (flat sheet px)
 
 /**
@@ -22,6 +23,7 @@ const INTERIOR_PX = 3; // an interior cell is at least this far inside the edge 
  * a strip sample of that piece inside the cell (NaN if none, e.g. in tip cells).
  */
 export function buildGuide(layout, geometry, { bleedR = 0, cellPx = 8 } = {}) {
+  if (layout.pieces.length > MAX_PIECES) throw new RangeError(`Guide supports at most ${MAX_PIECES} pieces (got ${layout.pieces.length})`);
   const { unrolling, outline } = geometry;
   const cols = Math.ceil(layout.widthPx / cellPx);
   const rows = Math.ceil(layout.heightPx / cellPx);
