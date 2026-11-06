@@ -71,8 +71,9 @@ live in [`studio3/`](studio3/README.md) and are added size by size as they are m
 one is missing for a size, the web app says so and you can use the SVG cut file instead.
 
 The `.studio3` files use "as many as fit" spheres per sheet for their size, and have no ties. The web app
-offers them only with that choice: 2 spheres at 40 and 45 mm on Letter, and 1 above that. To add your own
-ties in Studio, or to generate the SVGs they come from, run `node tools/silhouette-presets.mjs <dir> --ties`. The SVG and DXF cut files from the web app and CLI can include ties (`--ties`).
+offers them only with that choice: 2 spheres at 40 and 45 mm on Letter, and 1 above that. You can add ties
+yourself in Studio, or generate tied versions of their SVGs with
+`node tools/silhouette-presets.mjs <dir> --ties`. The SVG and DXF cut files from the web app and CLI can include ties (`--ties`).
 
 `node cli.js --help` prints the same list. Node ≥ 22 is needed to run the tests (`npm test`); the
 package itself runs on Node ≥ 20.
