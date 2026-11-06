@@ -64,6 +64,10 @@ _Avoid_: overprint, overbleed
 The marks a cutting machine's optical sensor uses to line up its cuts with a printed sheet: a solid square top-left and L-shaped corners top-right and bottom-left. They match Silhouette Studio's Type 1 marks at a 10 mm inset, and the sheet's margin is 10 mm when they are on.
 _Avoid_: cutting markers, corner markers, crop marks
 
+**Preset size**:
+A Letter sheet with Silhouette marks and a whole-mm sphere diameter (40, 45, 50, 55, 60 or 62 mm) that has a committed Silhouette Studio cut file in `studio3/`. The cut lines sit at the same mm positions at any DPI and bleed, so one file fits every render. Not the same as a 360craft preset, which fixes the whole sheet.
+_Avoid_: size preset, Silhouette preset
+
 ## Reference
 
 **360craft**:

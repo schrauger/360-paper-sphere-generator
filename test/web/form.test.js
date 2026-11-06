@@ -88,3 +88,17 @@ test('cliCommandFor quotes awkward input names and writes negative numbers as se
   const cmd = cliCommandFor(normalizeOptions({ orientation: { yaw: -42, pitch: -20 } }), "my pano's.jpg");
   assert.equal(cmd, "paper-sphere 'my pano'\\''s.jpg' -o sheet.pdf --yaw -42 --pitch -20");
 });
+
+test('formToOptions: a Silhouette preset diameter sets diameterMm; studio3 is web-only', () => {
+  const o = formToOptions({ page: 'letter', marks: 'silhouette', diameterMode: 'preset-50', diameter: '', cutFile: 'studio3' });
+  assert.equal(o.diameterMm, 50);
+  assert.equal(o.cutFile, null);
+  assert.equal(o.marks, 'silhouette');
+  assert.equal(formToOptions({ diameterMode: 'preset-62', cutFile: 'svg' }).cutFile, 'svg');
+  assert.throws(() => formToOptions({ diameterMode: 'preset-abc' }), OptionError);
+});
+
+test('cliCommandFor: a Silhouette preset size is --page letter --marks silhouette --diameter, no studio3 flag', () => {
+  const o = formToOptions({ page: 'letter', marks: 'silhouette', diameterMode: 'preset-50', cutFile: 'studio3', outline: 'on' });
+  assert.equal(cliCommandFor(o, 'p.jpg'), 'paper-sphere p.jpg -o sheet.pdf --page letter --diameter 50 --marks silhouette');
+});

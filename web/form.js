@@ -1,5 +1,6 @@
 // The options form ↔ RenderOptions and the equivalent CLI command. Pure (importable in Node).
 import { PAGE_SIZES, normalizeOptions } from '../src/options.js';
+import { SILHOUETTE_PRESETS } from '../src/layout/silhouette-presets.js';
 
 /**
  * RenderOptions (normalizeOptions) from the form's entries (name → string, as FormData gives
@@ -7,16 +8,18 @@ import { PAGE_SIZES, normalizeOptions } from '../src/options.js';
  * Entries: preset, page ('letter' | … | 'custom'), pageWidth, pageHeight (mm, for 'custom'), dpi,
  * diameter, margin, outline, bleedMode ('off' | 'auto' | 'mm'), bleedMm, marks, yaw, pitch, roll,
  * format, quality, cutFile. Two choice controls add a mode entry: `diameterMode` ('largest' ignores
- * `diameter`; anything else uses it) and `dpi` = 'custom' (use `dpiCustom`).
+ * `diameter`; `preset-<mm>` is a Silhouette preset size; anything else uses `diameter`) and `dpi` = 'custom' (use `dpiCustom`).
  */
 export function formToOptions(entries) {
   const e = entries;
+  const mode = e.diameterMode ?? '';
+  const diameter = mode === 'largest' ? '' : mode.startsWith('preset-') ? mode.slice('preset-'.length) : e.diameter;
   const bleed = e.bleedMode === 'auto' ? 'auto' : e.bleedMode === 'mm' ? e.bleedMm : 'off';
   return normalizeOptions({
     preset: e.preset,
     page: e.page === 'custom' ? `${(e.pageWidth ?? '').trim()}x${(e.pageHeight ?? '').trim()}mm` : e.page,
     dpi: e.dpi === 'custom' ? e.dpiCustom : e.dpi,
-    diameterMm: e.diameterMode === 'largest' ? '' : e.diameter,
+    diameterMm: diameter,
     marginMm: e.margin,
     outline: e.outline !== undefined && e.outline !== '',
     bleed,
@@ -24,7 +27,7 @@ export function formToOptions(entries) {
     orientation: { yaw: e.yaw, pitch: e.pitch, roll: e.roll },
     format: e.format,
     jpegQuality: e.quality,
-    cutFile: e.cutFile,
+    cutFile: e.cutFile === 'studio3' ? '' : e.cutFile, // .studio3 is a web-only download, not a generated cut file
   });
 }
 
@@ -41,7 +44,8 @@ export function cliCommandFor(options, inputName) {
   if (o.preset) args.push('--preset', o.preset);
   else {
     const named = Object.entries(PAGE_SIZES).find(([, [w, h]]) => w === o.page.widthMm && h === o.page.heightMm)?.[0];
-    if (named !== 'letter') args.push('--page', named ?? `${o.page.widthMm}x${o.page.heightMm}mm`);
+    const silhouettePreset = named === 'letter' && o.marks === 'silhouette' && SILHOUETTE_PRESETS.letter.includes(o.diameterMm);
+    if (named !== 'letter' || silhouettePreset) args.push('--page', named ?? `${o.page.widthMm}x${o.page.heightMm}mm`);
   }
   if (o.dpi !== 300) args.push('--dpi', String(o.dpi));
   if (!o.preset) {

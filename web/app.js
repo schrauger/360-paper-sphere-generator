@@ -7,6 +7,7 @@ import { totalRotation } from '../src/render/warp.js';
 import { apply, equirectToDirection } from '../src/sphere/orient.js';
 import { dragPhoto, orbitView, rollPhoto, userYPR } from '../src/interact/drag.js';
 import { cliCommandFor, formToOptions } from './form.js';
+import { SILHOUETTE_PRESETS, studio3Path } from '../src/layout/silhouette-presets.js';
 
 const $ = (id) => document.getElementById(id);
 const form = $('options');
@@ -53,9 +54,69 @@ function toggleField(wrapperId, inputIds, on) {
 
 let savedMargin = null; // the user's margin while Silhouette marks force 10 mm
 
+// ---- Silhouette preset sizes ---------------------------------------------------------------
+
+const presetOptions = SILHOUETTE_PRESETS.letter.map((mm) => Object.assign(document.createElement('option'), {
+  value: `preset-${mm}`, textContent: `${mm} mm · Silhouette cut file`,
+}));
+let modeBeforePreset = 'largest';
+const isPresetMode = (mode) => mode.startsWith('preset-');
+
+/** Preset diameters are offered only for Letter + Silhouette marks (and no 360craft preset); otherwise they are removed and the diameter choice returns to what it was. */
+function syncPresetChoices(presetSheet) {
+  const select = $('diameterMode');
+  const offer = !presetSheet && $('page').value === 'letter' && $('marks').value === 'silhouette';
+  const listed = presetOptions[0].parentNode === select;
+  if (offer && !listed) select.append(...presetOptions);
+  else if (!offer && listed) {
+    if (isPresetMode(select.value)) select.value = modeBeforePreset;
+    presetOptions.forEach((o) => o.remove());
+  }
+  if (!isPresetMode(select.value)) modeBeforePreset = select.value;
+  const preset = isPresetMode(select.value);
+  $('studio3-option').disabled = !preset;
+  if (!preset && $('cutFile').value === 'studio3') $('cutFile').value = '';
+}
+
+const studio3Exists = new Map(); // repo-relative path → Promise<boolean>
+function hasStudio3(path) {
+  if (!studio3Exists.has(path)) {
+    const url = new URL(`../${path}`, import.meta.url);
+    studio3Exists.set(path, fetch(url, { method: 'HEAD' }).then((r) => r.ok, () => false));
+  }
+  return studio3Exists.get(path);
+}
+
+let studio3Token = 0;
+/** Beside the sheet download: a link to the committed .studio3 for the chosen preset, or a note that it is not available yet. */
+async function showStudio3() {
+  const status = $('studio3-status');
+  const mode = $('diameterMode').value;
+  const wanted = $('cutFile').value === 'studio3' && isPresetMode(mode);
+  const token = ++studio3Token;
+  if (!wanted) {
+    status.hidden = true;
+    status.replaceChildren();
+    return;
+  }
+  const path = studio3Path('letter', Number(mode.slice('preset-'.length)));
+  const exists = await hasStudio3(path);
+  if (token !== studio3Token) return;
+  if (exists) {
+    const name = path.split('/').pop();
+    status.replaceChildren('Silhouette cut file: ', Object.assign(document.createElement('a'), {
+      href: new URL(`../${path}`, import.meta.url).href, download: name, textContent: name,
+    }));
+  } else {
+    status.textContent = "The Silhouette cut file for this size isn't available yet; use the SVG cut file instead.";
+  }
+  status.hidden = false;
+}
+
 function syncFormState() {
   const preset = $('preset').value !== '';
   const silhouette = $('marks').value === 'silhouette';
+  syncPresetChoices(preset);
   for (const id of ['page', 'pageWidth', 'pageHeight', 'diameterMode', 'diameter']) $(id).disabled = preset;
   for (const button of document.querySelectorAll('[data-marks]')) {
     button.disabled = preset;
@@ -264,6 +325,7 @@ form.addEventListener('input', (e) => {
   }
   syncFormState();
   updateCliText();
+  showStudio3();
   requestPreview();
 });
 for (const button of document.querySelectorAll('[data-marks]')) {

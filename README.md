@@ -60,6 +60,13 @@ anything else is an error.
 | `--cut-file svg\|dxf` | Also write the cut path as `<out>.svg` or `<out>.dxf`. |
 | `--quality Q` | JPEG quality 1–100 (default 92). |
 
+### Silhouette print & cut
+
+Choose Letter, Silhouette marks and one of the preset sphere sizes in the web app, then download the
+sheet (a PDF) and the matching `.studio3` cut file beside it. Print the PDF at 100% (no scaling or
+fit to page), open the `.studio3` in Silhouette Studio, load the printed sheet and cut. The files
+live in [`studio3/`](studio3/README.md); if one is missing for a size, use the SVG cut file instead.
+
 `node cli.js --help` prints the same list. Node ≥ 22 is needed to run the tests (`npm test`); the
 package itself runs on Node ≥ 20.
 

@@ -26,6 +26,7 @@ jobs:
           mkdir _site
           cp index.html _site/
           cp -r web src _site/
+          cp -r studio3 _site/
       - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
