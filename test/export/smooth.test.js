@@ -52,7 +52,7 @@ const ringIndex = (ring) => {
   };
 };
 // Sample a polyline ring densely (about every 0.01 mm), vertices included.
-const densify = (ring, step = 0.01) => {
+const densify = (ring, step = 0.005) => {
   const out = [];
   ring.forEach((a, i) => {
     const b = ring[(i + 1) % ring.length];
@@ -74,7 +74,7 @@ for (const { name, opts } of CASES) {
   cuts.forEach((ring, pi) => {
     test(`${name}, piece ${pi}: smoothed path stays within tolerance both ways`, () => {
       const path = smoothClosedPath(ring);
-      const dense = sampleSmoothPath(path, 0.01);
+      const dense = sampleSmoothPath(path, 0.005);
       const toRing = ringIndex(ring);
       const toCurve = ringIndex(dense);
       let a = 0;
@@ -82,7 +82,7 @@ for (const { name, opts } of CASES) {
       let b = 0;
       for (const p of densify(ring)) b = Math.max(b, toCurve(p));
       assert.ok(a <= SMOOTH_TOLERANCE_MM, `curve to polyline ${a}`);
-      assert.ok(b <= SMOOTH_TOLERANCE_MM + 0.01, `polyline to curve ${b}`); // +0.01: sampling step
+      assert.ok(b <= SMOOTH_TOLERANCE_MM, `polyline to curve ${b}`);
     });
 
     test(`${name}, piece ${pi}: at least 10x fewer segments, corners kept, no tiny segments`, () => {
@@ -128,4 +128,34 @@ test('a square stays four straight lines; a circle becomes a few curves', () => 
   const circle = Array.from({ length: 720 }, (_, i) => [20 * Math.cos((i * Math.PI) / 360), 20 * Math.sin((i * Math.PI) / 360)]);
   const c = smoothClosedPath(circle);
   assert.ok(c.segs.length <= 12 && c.segs.every((s) => s.type === 'C'));
+});
+
+test('a ring with exactly one corner (teardrop) keeps it and stays within tolerance', () => {
+  // Teardrop: a circle of radius 10 and two tangent straight sides meeting at a tip at (30, 0).
+  const alpha = Math.acos(10 / 30);
+  const ring = [];
+  for (let i = 0; i < 600; i++) {
+    const t = alpha + ((2 * Math.PI - 2 * alpha) * i) / 600;
+    ring.push([10 * Math.cos(t), 10 * Math.sin(t)]);
+  }
+  const first = [10 * Math.cos(alpha), 10 * Math.sin(alpha)];
+  const lastP = [10 * Math.cos(-alpha), 10 * Math.sin(-alpha)];
+  ring.push(lastP);
+  const tip = [30, 0];
+  for (let i = 1; i < 200; i++) ring.push([lastP[0] + ((tip[0] - lastP[0]) * i) / 200, lastP[1] + ((tip[1] - lastP[1]) * i) / 200]);
+  ring.push(tip);
+  for (let i = 1; i < 200; i++) ring.push([tip[0] + ((first[0] - tip[0]) * i) / 200, tip[1] + ((first[1] - tip[1]) * i) / 200]);
+  assert.equal(cornersOf(ring).length, 1, 'fixture has one corner');
+  const toRing = ringIndex(ring);
+  const path = smoothClosedPath(ring);
+  assert.ok(path.segs.length >= 3 && path.segs.length * 10 <= ring.length, `${path.segs.length} segs`);
+  assert.ok(has([path.start, ...path.segs.map((s) => s.to)], tip), 'corner kept');
+  assert.deepEqual(path.segs[path.segs.length - 1].to, path.start);
+  for (const p of sampleSmoothPath(path, 0.005)) assert.ok(toRing(p) <= SMOOTH_TOLERANCE_MM, 'curve to polyline');
+  const toCurve = ringIndex(sampleSmoothPath(path, 0.005));
+  for (const p of densify(ring)) assert.ok(toCurve(p) <= SMOOTH_TOLERANCE_MM, 'polyline to curve');
+  const simple = simplifyClosed(ring);
+  assert.ok(simple.length >= 4 && simple.length * 10 <= ring.length, `${simple.length} vertices`);
+  assert.ok(has(simple, tip), 'corner kept in simplify');
+  for (const p of densify(simple)) assert.ok(toRing(p) <= SMOOTH_TOLERANCE_MM + 1e-9);
 });

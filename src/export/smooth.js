@@ -48,6 +48,13 @@ function prepare(points) {
   return { ring, corners: flags.flatMap((f, i) => (f ? [i] : [])) };
 }
 
+// A closed run needs two anchors: with no corner use 0, with one corner add the opposite vertex.
+const withSecondAnchor = (anchors, n) => {
+  if (anchors.length >= 2) return anchors;
+  const a = anchors.length ? anchors[0] : 0;
+  return [a, (a + Math.floor(n / 2)) % n];
+};
+
 /** Ring indices from `i` to `j` going forward (wrapping), inclusive, as points. */
 function runPoints(ring, i, j) {
   const n = ring.length;
@@ -189,7 +196,7 @@ export function smoothClosedPath(points) {
   if (n < 3) return { start: ring[0], segs: ring.slice(1).concat([ring[0]]).map((to) => ({ type: 'L', to })) };
   let anchors = corners;
   const sharp = new Set(anchors);
-  if (anchors.length === 0) anchors = [0, Math.floor(n / 2)];
+  anchors = withSecondAnchor(anchors, n);
   const segs = [];
   anchors.forEach((a, k) => {
     const b = anchors[(k + 1) % anchors.length];
@@ -236,7 +243,7 @@ export function simplifyClosed(points) {
   const n = ring.length;
   if (n < 4) return ring;
   let anchors = corners;
-  if (anchors.length === 0) anchors = [0, Math.floor(n / 2)];
+  anchors = withSecondAnchor(anchors, n);
   const out = [];
   anchors.forEach((a, k) => {
     const b = anchors[(k + 1) % anchors.length];
