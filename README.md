@@ -38,6 +38,7 @@ See the [print and cut guide](https://sphere.schrauger.com/web/guide.html) ([sou
 - Print the PDF at 100% (actual size, no "fit to page").
 - The printed cut outline is for cutting by hand. With a cutting machine, turn **Cut outline** off: the machine cuts from the cut file, and a printed line shows if the cut is slightly off.
 - Silhouette Studio opens SVG only in Designer Edition or higher; the free Basic Edition opens DXF and `.studio3`. For an SVG: choose Cutter marks Silhouette, open the SVG, select all objects, Group them, set the position to X 9.75 mm and Y 9.75 mm (the outer edge of the black marks), and turn on registration marks with the inset at 10 mm.
+- With Basic Edition, use the DXF cut file. Studio shrinks a DXF to fit the page when it opens it, so after grouping, lock the aspect ratio and set the size to the page minus 19.5 mm each way (Letter: 196.4 × 259.9 mm), then position it at X 9.75 mm and Y 9.75 mm.
 
 ## CLI quick start
 
