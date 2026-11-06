@@ -19,3 +19,17 @@ export function drawMarks(img, marks) {
     }
   }
 }
+
+/**
+ * Closed outlines (px) of layout.marks, matching what drawMarks fills: a square is its
+ * 4-vertex rectangle, an L-corner its 6-vertex L (leg × stroke).
+ */
+export function markOutlines(marks) {
+  return marks.map((m) => {
+    if (m.type === 'square') return rect(m.x, m.y, m.x + m.size, m.y + m.size);
+    const sx = m.corner === 'top-right' ? -1 : 1;
+    const sy = m.corner === 'top-right' ? 1 : -1;
+    const at = (u, v) => [m.x + sx * u, m.y + sy * v];
+    return [at(0, 0), at(m.leg, 0), at(m.leg, m.stroke), at(m.stroke, m.stroke), at(m.stroke, m.leg), at(0, m.leg)];
+  });
+}
