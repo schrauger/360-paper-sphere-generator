@@ -12,6 +12,8 @@ import { markOutlines } from './render/marks.js';
 import { tieWarnings } from './export/ties.js';
 
 const MM_PER_IN = 25.4;
+/** The largest PDF page side some viewers (Acrobat) accept: 200 in. */
+export const PDF_PAGE_LIMIT_MM = 200 * MM_PER_IN;
 
 /**
  * sec²d at the body's band edge: the stretch the flat map applies across the cut edge (R25/R27),
@@ -21,6 +23,13 @@ export function edgeStretch(model = MODEL_360CRAFT) {
   const { spiral, unrolling } = makeModelGeometry(model);
   const { d } = unrolling.sphereToStrip(seamPoint(spiral, Math.PI / 2, 1));
   return 1 / Math.cos(d) ** 2;
+}
+
+/** [] or [warning]: a PDF page with a side over PDF_PAGE_LIMIT_MM (the sheet is widthPx × heightPx at dpi). */
+export function pdfPageWarnings(widthPx, heightPx, dpi) {
+  const [wMm, hMm] = [widthPx, heightPx].map((px) => (px / dpi) * MM_PER_IN);
+  if (Math.max(wMm, hMm) <= PDF_PAGE_LIMIT_MM) return [];
+  return [`PDF page is ${Math.round(wMm)}×${Math.round(hMm)} mm, over the 5080 mm (200 in) limit some PDF viewers enforce`];
 }
 
 /** The layoutSheet arguments for `options` (a preset fixes the sheet; otherwise the page and its extras). */
@@ -65,6 +74,7 @@ export function renderSheet(pano, options) {
     bleedR,
     rotation: totalRotation(model, options.orientation),
   });
+  if (options.format === 'pdf') warnings.push(...pdfPageWarnings(image.width, image.height, options.dpi));
   const includeMarks = layout.marks.length > 0;
   if (options.cutFile && options.tieMm && layout.pieces.length) {
     warnings.push(...tieWarnings(layoutInMm(layout, outline, false, markOutlines).cuts[0], options.tieMm));

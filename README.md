@@ -23,8 +23,7 @@ defunct 360craft site (see [Credits](#credits)).
 required. [Source](https://pxhere.com/en/photo/461435).*
 
 Output is a PDF (the default), PNG or JPEG sheet, optionally with the cut outline as SVG or DXF for a
-cutting machine. The PDF is the default download and prints at 100% (actual size), which is what makes
-the printed marks line up with the cutter.
+cutting machine.
 
 ## Web app
 
@@ -71,7 +70,9 @@ fit to page), open the `.studio3` in Silhouette Studio, load the printed sheet a
 live in [`studio3/`](studio3/README.md) and are added size by size as they are made (none exist yet); if
 one is missing for a size, the web app says so and you can use the SVG cut file instead.
 
-The `.studio3` files are made with "as many as fit" spheres per sheet for their size (the web app offers them only with that choice) (2 at 40 and 45 mm on Letter, 1 above) and without ties; add your own in Studio, or generate the SVGs they come from with `node tools/silhouette-presets.mjs <dir> --ties`. The SVG and DXF cut files from the web app and CLI can include ties (`--ties`).
+The `.studio3` files use "as many as fit" spheres per sheet for their size, and have no ties. The web app
+offers them only with that choice: 2 spheres at 40 and 45 mm on Letter, and 1 above that. To add your own
+ties in Studio, or to generate the SVGs they come from, run `node tools/silhouette-presets.mjs <dir> --ties`. The SVG and DXF cut files from the web app and CLI can include ties (`--ties`).
 
 `node cli.js --help` prints the same list. Node ≥ 22 is needed to run the tests (`npm test`); the
 package itself runs on Node ≥ 20.
@@ -133,8 +134,9 @@ one is a pentagon whose shape scales with the seam chord it sits on.
 
 ![A tab with its pitch, length, height and slant](docs/img/tab.svg)
 
-The diagrams above are generated from the real geometry modules by `node tools/diagrams.mjs`, and the
-example images by `node tools/readme-examples.mjs`.
+The diagrams above are generated from the real geometry modules by `node tools/diagrams.mjs`. The example
+images come from `node tools/readme-examples.mjs`, and `node tools/readme-globe.mjs` makes
+`docs/img/assembled-globes.png`.
 
 ## Accuracy
 

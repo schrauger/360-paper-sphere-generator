@@ -4,7 +4,7 @@ import { MODEL_360CRAFT } from '../src/model/360craft.js';
 import { makeModelGeometry } from '../src/model/geometry.js';
 import { layoutSheet } from '../src/layout/sheet.js';
 import { normalizeOptions } from '../src/options.js';
-import { edgeStretch, resolveBleed } from '../src/pipeline.js';
+import { edgeStretch, layoutOptionsFor, pdfPageWarnings, resolveBleed } from '../src/pipeline.js';
 import { MAX_BLEED_R } from '../src/render/warp.js';
 
 const { outline } = makeModelGeometry(MODEL_360CRAFT);
@@ -29,4 +29,20 @@ test('resolveBleed auto uses the model bleed', () => {
   const { bleedR, warnings } = resolveBleed(normalizeOptions({ bleed: 'auto' }), layout, MODEL_360CRAFT);
   assert.equal(bleedR, MODEL_360CRAFT.style.bleed);
   assert.deepEqual(warnings, []);
+});
+
+test('pdfPageWarnings is empty up to 200 in on both sides and warns past it', () => {
+  assert.deepEqual(pdfPageWarnings(5000 / 25.4 * 300, 1000, 300), []);
+  assert.deepEqual(pdfPageWarnings(1000, 1000, 300), []);
+  const warnings = pdfPageWarnings(1000, 80000, 300);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /^PDF page is 85×6773 mm, over the 5080 mm \(200 in\) limit some PDF viewers enforce$/);
+});
+
+test('an enlarged 60-copy layout (about 6004 mm wide at 72 dpi) gets the PDF page warning', () => {
+  // Only the layout is computed: compositing a 17018 px sheet is too slow for a unit test.
+  const enlarged = layoutSheet(MODEL_360CRAFT, outline, layoutOptionsFor(normalizeOptions({ dpi: 72, copies: 60, diameterMm: 40 })));
+  assert.ok(enlarged.widthPx / 72 * 25.4 > 5080, `width ${enlarged.widthPx}px`);
+  const [warning] = pdfPageWarnings(enlarged.widthPx, enlarged.heightPx, 72);
+  assert.match(warning, /^PDF page is 6004×178 mm, over the 5080 mm/);
 });
