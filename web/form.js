@@ -6,7 +6,8 @@ import { PAGE_SIZES, normalizeOptions } from '../src/options.js';
  * them). Blank values mean "default"; an absent `outline` checkbox means false.
  * Entries: preset, page ('letter' | … | 'custom'), pageWidth, pageHeight (mm, for 'custom'), dpi,
  * diameter, margin, outline, bleedMode ('off' | 'auto' | 'mm'), bleedMm, marks, yaw, pitch, roll,
- * format, quality, cutFile.
+ * format, quality, cutFile. Two choice controls add a mode entry: `diameterMode` ('largest' ignores
+ * `diameter`; anything else uses it) and `dpi` = 'custom' (use `dpiCustom`).
  */
 export function formToOptions(entries) {
   const e = entries;
@@ -14,8 +15,8 @@ export function formToOptions(entries) {
   return normalizeOptions({
     preset: e.preset,
     page: e.page === 'custom' ? `${(e.pageWidth ?? '').trim()}x${(e.pageHeight ?? '').trim()}mm` : e.page,
-    dpi: e.dpi,
-    diameterMm: e.diameter,
+    dpi: e.dpi === 'custom' ? e.dpiCustom : e.dpi,
+    diameterMm: e.diameterMode === 'largest' ? '' : e.diameter,
     marginMm: e.margin,
     outline: e.outline !== undefined && e.outline !== '',
     bleed,

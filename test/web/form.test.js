@@ -25,6 +25,15 @@ test('formToOptions maps every form field; checkbox absence = false', () => {
   assert.deepEqual(formToOptions({ outline: 'on' }), normalizeOptions({}));
 });
 
+test('formToOptions: diameter and resolution choice controls', () => {
+  assert.equal(formToOptions({ ...FULL, diameterMode: 'largest' }).diameterMm, null);
+  assert.equal(formToOptions({ ...FULL, diameterMode: 'custom' }).diameterMm, 120);
+  assert.equal(formToOptions({ ...FULL, dpi: '1200' }).dpi, 1200);
+  assert.equal(formToOptions({ ...FULL, dpi: 'custom', dpiCustom: '450' }).dpi, 450);
+  assert.equal(formToOptions({ ...FULL, dpi: 'custom' }).dpi, 300);
+  assert.throws(() => formToOptions({ ...FULL, dpi: 'custom', dpiCustom: '5000' }), /--dpi/);
+});
+
 test('formToOptions reports the offending option', () => {
   assert.throws(() => formToOptions({ ...FULL, dpi: '5000' }), (e) => e instanceof OptionError && /--dpi/.test(e.message));
   assert.throws(() => formToOptions({ ...FULL, page: 'custom', pageWidth: '', pageHeight: '' }), /--page/);

@@ -45,12 +45,39 @@ function currentOptions() {
   }
 }
 
+// Show a conditional field only when its choice asks for it; hidden fields are disabled so FormData skips them.
+function toggleField(wrapperId, inputIds, on) {
+  $(wrapperId).hidden = !on;
+  for (const id of inputIds) $(id).disabled = !on;
+}
+
+let savedMargin = null; // the user's margin while Silhouette marks force 10 mm
+
 function syncFormState() {
   const preset = $('preset').value !== '';
-  $('page-fields').disabled = preset;
-  $('custom-page').hidden = $('page').value !== 'custom';
-  $('bleedMm').disabled = $('bleedMode').value !== 'mm';
-  $('quality').disabled = $('format').value !== 'jpg';
+  const silhouette = $('marks').value === 'silhouette';
+  for (const id of ['page', 'pageWidth', 'pageHeight', 'diameterMode', 'diameter']) $(id).disabled = preset;
+  for (const button of document.querySelectorAll('[data-marks]')) {
+    button.disabled = preset;
+    button.setAttribute('aria-pressed', String(button.dataset.marks === $('marks').value));
+  }
+  toggleField('custom-page', ['pageWidth', 'pageHeight'], $('page').value === 'custom' && !preset);
+  toggleField('custom-diameter', ['diameter'], $('diameterMode').value === 'custom' && !preset);
+  toggleField('custom-bleed', ['bleedMm'], $('bleedMode').value === 'mm');
+  toggleField('custom-dpi', ['dpiCustom'], $('dpi').value === 'custom');
+  toggleField('custom-quality', ['quality'], $('format').value === 'jpg');
+  // Silhouette marks ignore the margin (10 mm); a preset ignores it too. Show that instead of the typed value.
+  const marginFixed = silhouette || preset;
+  if (silhouette && !preset && savedMargin === null) {
+    savedMargin = $('margin').value;
+    $('margin').value = '10';
+  } else if (!(silhouette && !preset) && savedMargin !== null) {
+    $('margin').value = savedMargin;
+    savedMargin = null;
+  }
+  $('margin').disabled = marginFixed;
+  $('margin-hint').hidden = !(silhouette && !preset);
+  $('preset-hint').hidden = !preset;
 }
 
 function updateCliText() {
@@ -67,6 +94,7 @@ function showOrientation() {
   for (const name of ORIENTATION_FIELDS) {
     const field = $(name);
     if (document.activeElement !== field) field.value = fmt(ypr[name]);
+    $(`${name}-out`).textContent = `${fmt(ypr[name])}°`;
   }
 }
 
@@ -75,7 +103,12 @@ function orientationFromFields() {
   if (Object.values(ypr).every(Number.isFinite)) rotation = totalRotation(model, ypr);
 }
 
-for (const name of ORIENTATION_FIELDS) $(name).addEventListener('input', orientationFromFields);
+for (const name of ORIENTATION_FIELDS) {
+  $(name).addEventListener('input', () => {
+    orientationFromFields();
+    orientationChanged();
+  });
+}
 
 function orientationChanged() {
   showOrientation();
@@ -117,6 +150,14 @@ function previewDone() {
   }
 }
 
+function showDiameter(diameterMm) {
+  $('info').textContent = `Sphere diameter: ${diameterMm.toFixed(1)} mm`;
+  $('largest-option').textContent = `Largest that fits (${diameterMm.toFixed(1)} mm)`;
+  if ($('diameterMode').value === 'largest') lastDiameter = diameterMm;
+}
+
+let lastDiameter = null;
+
 function showWarnings(warnings) {
   const list = $('warnings');
   list.replaceChildren(...warnings.map((w) => Object.assign(document.createElement('li'), { textContent: w })));
@@ -128,6 +169,7 @@ function handleMessage(event) {
     previewDone();
   } else if (m.type === 'loaded') {
     loaded = true;
+    $('drop').classList.add('loaded');
     const note = m.scaled ? ` Downscaled from ${m.sourceWidth}×${m.sourceHeight} to fit the browser's canvas limit.` : '';
     $('load-status').textContent = `${fileName}: ${m.width}×${m.height} px.${note}`;
     $('render').disabled = false;
@@ -137,7 +179,7 @@ function handleMessage(event) {
     drawFrame(canvases.sheet, m.sheet);
     drawFrame(canvases.panorama, m.panorama);
     drawFrame(canvases.globe, m.globe);
-    $('info').textContent = `Sphere diameter: ${m.diameterMm.toFixed(1)} mm`;
+    showDiameter(m.diameterMm);
     showWarnings(m.warnings);
     $('render-error').textContent = '';
     previewDone();
@@ -207,11 +249,20 @@ drop.addEventListener('drop', (e) => {
   loadFile(e.dataTransfer.files[0]);
 });
 
-form.addEventListener('input', () => {
+form.addEventListener('input', (e) => {
+  if (e.target.id === 'diameterMode' && e.target.value === 'custom' && !$('diameter').value && lastDiameter) {
+    $('diameter').value = String(Number(lastDiameter.toFixed(1)));
+  }
   syncFormState();
   updateCliText();
   requestPreview();
 });
+for (const button of document.querySelectorAll('[data-marks]')) {
+  button.addEventListener('click', () => {
+    $('marks').value = button.dataset.marks;
+    form.dispatchEvent(new Event('input'));
+  });
+}
 form.addEventListener('submit', (e) => e.preventDefault());
 
 // ---- dragging ------------------------------------------------------------------------------
@@ -335,7 +386,7 @@ $('copy-cli').addEventListener('click', async () => {
 function setRendering(on) {
   rendering = on;
   $('render').disabled = on || !loaded;
-  $('render').textContent = on ? 'Rendering…' : 'Render & download';
+  $('render').textContent = on ? 'Rendering…' : 'Download sheet';
 }
 
 $('render').addEventListener('click', () => {
@@ -374,7 +425,8 @@ function finishRender({ blob, cutFile, diameterMm, warnings }) {
     const type = cutFile.type === 'svg' ? 'image/svg+xml' : 'application/dxf';
     links.push(download(new Blob([cutFile.content], { type }), `${base}-sheet.${cutFile.type}`));
   }
-  $('info').textContent = `Sphere diameter: ${diameterMm.toFixed(1)} mm. Downloaded:`;
+  showDiameter(diameterMm);
+  $('info').textContent += '. Downloaded:';
   $('downloads').replaceChildren(...links.flatMap((a, i) => (i ? [' · ', a] : [a])));
   showWarnings(warnings);
 }
