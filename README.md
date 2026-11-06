@@ -126,7 +126,7 @@ numbers only (the reference images are not in this repository, see
   about 3 px, concentrated at the two curled tips. That is up to about 0.25 mm on the low-resolution
   sheet. The glue tabs add no error beyond the seam's.
 - **Colour** at `original-high` against 360craft's renders: mean absolute error 2.4–5.1 grey levels,
-  and 99.5–99.8% agreement on which pixels are image or paper. This is the fit error seen at twice the
+  and 99.47–99.78% agreement on which pixels are image or paper. This is the fit error seen at twice the
   resolution: about one high-resolution pixel of registration.
 - **Print style** (tab colour, outline width, bleed width) matches the references.
 
