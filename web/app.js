@@ -24,7 +24,7 @@ let inflight = false;
 let dirty = false;
 let rendering = false;
 
-const worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
+let worker = null;
 
 // ---- options -------------------------------------------------------------------------------
 
@@ -122,9 +122,11 @@ function showWarnings(warnings) {
   list.replaceChildren(...warnings.map((w) => Object.assign(document.createElement('li'), { textContent: w })));
 }
 
-worker.onmessage = (event) => {
+function handleMessage(event) {
   const m = event.data;
-  if (m.type === 'loaded') {
+  if (m.type === 'preview-skipped') {
+    previewDone();
+  } else if (m.type === 'loaded') {
     loaded = true;
     const note = m.scaled ? ` Downscaled from ${m.sourceWidth}×${m.sourceHeight} to fit the browser's canvas limit.` : '';
     $('load-status').textContent = `${fileName}: ${m.width}×${m.height} px.${note}`;
@@ -154,8 +156,31 @@ worker.onmessage = (event) => {
       previewDone();
     }
   }
-};
+}
 
+// A worker that dies (out of memory, uncaught error) loses the decoded panorama: start a new one.
+function workerFailed(message) {
+  worker?.terminate();
+  loaded = false;
+  inflight = false;
+  dirty = false;
+  sheetMap = null;
+  setRendering(false);
+  $('render').disabled = true;
+  $('render-error').textContent = `${message} Load the panorama again, or lower the DPI / use the CLI.`;
+  startWorker();
+}
+
+function startWorker() {
+  worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
+  worker.onmessage = handleMessage;
+  worker.onerror = (e) => {
+    e.preventDefault?.();
+    workerFailed(`The image worker stopped${e.message ? ` (${e.message})` : ''}.`);
+  };
+  worker.onmessageerror = () => workerFailed('The image worker sent an unreadable message.');
+}
+startWorker();
 // ---- loading -------------------------------------------------------------------------------
 
 function loadFile(file) {

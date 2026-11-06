@@ -135,3 +135,9 @@ test('setJpegDpi: JFIF density reads back 300×300 with units 1 when patching an
   assert.equal((await sharp(out).metadata()).density, 300);
   assert.equal(browser[13], 0, 'input not modified');
 });
+
+test('setPngDpi rejects a truncated file, including a partial trailing chunk', async () => {
+  const png = await samplePng();
+  assert.throws(() => setPngDpi(png.subarray(0, png.length - 5), 300), /Truncated PNG/);
+  assert.throws(() => setPngDpi(png.subarray(0, png.length - 12 + 4), 300), /Truncated PNG/);
+});

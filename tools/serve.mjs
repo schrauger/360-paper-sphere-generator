@@ -59,4 +59,5 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(port, () => console.log(`Serving ${root} at http://localhost:${port}/web/`));
+// Loopback only: the repo root may hold local-only photos and reference data (ADR-0002).
+server.listen(port, '127.0.0.1', () => console.log(`Serving ${root} at http://localhost:${port}/web/`));

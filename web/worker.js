@@ -47,8 +47,11 @@ async function load({ file }) {
   let bitmap;
   try {
     bitmap = await createImageBitmap(file);
-  } catch {
-    throw new Error(`Cannot read ${file.name ?? 'this file'} as an image`);
+  } catch (e) {
+    const big = e instanceof RangeError || /memory|too large|size/i.test(String(e?.message));
+    throw new Error(big
+      ? `${file.name ?? 'This image'} is too large for this browser to decode — downscale it first or use the CLI`
+      : `Cannot read ${file.name ?? 'this file'} as an image`);
   }
   try {
     const sourceWidth = bitmap.width;
@@ -64,6 +67,7 @@ async function load({ file }) {
     ctx.fillRect(0, 0, size.width, size.height);
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(bitmap, 0, 0, size.width, size.height);
+    // Deliberate (R41): decode at full (fitDecodeSize) resolution once at load so each render needn't re-decode.
     fullPano = { width: size.width, height: size.height, data: ctx.getImageData(0, 0, size.width, size.height).data };
     if (size.width <= PREVIEW_MAX_WIDTH) previewPano = fullPano;
     else {
@@ -106,7 +110,11 @@ async function runPreview() {
   scheduled = false;
   const m = pending;
   pending = null;
-  if (!m || !previewPano) return;
+  if (!m) return;
+  if (!previewPano) {
+    post({ type: 'preview-skipped' }); // every request gets one reply (a load may be in progress)
+    return;
+  }
   try {
     const sizes = { ...DEFAULT_SIZES, ...m.sizes };
     const cache = sheetPreviewFor(m.options, sizes.sheet);

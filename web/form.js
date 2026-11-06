@@ -17,7 +17,7 @@ export function formToOptions(entries) {
     dpi: e.dpi,
     diameterMm: e.diameter,
     marginMm: e.margin,
-    outline: e.outline !== undefined && e.outline !== false && e.outline !== '',
+    outline: e.outline !== undefined && e.outline !== '',
     bleed,
     marks: e.marks,
     orientation: { yaw: e.yaw, pitch: e.pitch, roll: e.roll },

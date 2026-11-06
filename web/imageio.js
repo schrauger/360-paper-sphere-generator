@@ -59,7 +59,8 @@ export function setPngDpi(bytes, dpi) {
   cv.setUint32(17, crc32(chunk.subarray(4, 17)));
   const parts = [bytes.subarray(0, 8)];
   let inserted = false;
-  for (let o = 8; o + 12 <= bytes.length;) {
+  for (let o = 8; o < bytes.length;) {
+    if (o + 12 > bytes.length) throw new Error('Truncated PNG file');
     const end = o + 12 + view.getUint32(o);
     if (end > bytes.length) throw new Error('Truncated PNG file');
     const t = type(o);
