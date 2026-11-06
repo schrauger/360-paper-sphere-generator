@@ -62,9 +62,9 @@ const presetOptions = SILHOUETTE_PRESETS.letter.map((mm) => Object.assign(docume
 const isPresetMode = (mode) => mode.startsWith('preset-');
 
 /** Preset diameters are offered only for Letter + Silhouette marks (and no 360craft preset); otherwise they are removed and a chosen preset size becomes the same size as a Custom diameter. */
-function syncPresetChoices(presetSheet) {
+function syncPresetChoices() {
   const select = $('diameterMode');
-  const offer = !presetSheet && $('page').value === 'letter' && $('marks').value === 'silhouette';
+  const offer = $('page').value === 'letter' && $('marks').value === 'silhouette';
   const listed = presetOptions[0].parentNode === select;
   if (offer && !listed) select.append(...presetOptions);
   else if (!offer && listed) {
@@ -122,18 +122,17 @@ async function showStudio3() {
 }
 
 function syncFormState() {
-  const preset = $('preset').value !== '';
   const silhouette = $('marks').value === 'silhouette';
-  syncPresetChoices(preset);
-  for (const id of ['page', 'pageWidth', 'pageHeight', 'diameterMode', 'diameter']) $(id).disabled = preset;
+  syncPresetChoices();
   for (const button of document.querySelectorAll('[data-marks]')) {
-    button.disabled = preset;
     button.setAttribute('aria-pressed', String(button.dataset.marks === $('marks').value));
   }
-  toggleField('custom-page', ['pageWidth', 'pageHeight'], $('page').value === 'custom' && !preset);
-  toggleField('custom-diameter', ['diameter'], $('diameterMode').value === 'custom' && !preset);
+  toggleField('custom-page', ['pageUnit', 'pageWidth', 'pageHeight'], $('page').value === 'custom');
+  $('pageWidth-label').textContent = `Width (${$('pageUnit').value})`;
+  $('pageHeight-label').textContent = `Height (${$('pageUnit').value})`;
+  toggleField('custom-diameter', ['diameter'], $('diameterMode').value === 'custom');
   // Spheres per sheet matters only with a chosen diameter (Largest is always one pair).
-  toggleField('copies-field', ['copies'], $('diameterMode').value !== 'largest' && !preset);
+  toggleField('copies-field', ['copies'], $('diameterMode').value !== 'largest');
   toggleField('custom-bleed', ['bleedMm'], $('bleedMode').value === 'mm');
   toggleField('custom-dpi', ['dpiCustom'], $('dpi').value === 'custom');
   const cutting = ['svg', 'dxf'].includes($('cutFile').value);
@@ -141,18 +140,16 @@ function syncFormState() {
   $('ties-field').hidden = !cutting;
   toggleField('custom-tie', ['tieWidth'], cutting && $('ties').checked);
   toggleField('custom-quality', ['quality'], $('format').value === 'jpg');
-  // Silhouette marks ignore the margin (10 mm); a preset ignores it too. Show that instead of the typed value.
-  const marginFixed = silhouette || preset;
-  if (silhouette && !preset && savedMargin === null) {
+  // Silhouette marks ignore the margin (10 mm). Show that instead of the typed value.
+  if (silhouette && savedMargin === null) {
     savedMargin = $('margin').value;
     $('margin').value = '10';
-  } else if (!(silhouette && !preset) && savedMargin !== null) {
+  } else if (!silhouette && savedMargin !== null) {
     $('margin').value = savedMargin;
     savedMargin = null;
   }
-  $('margin').disabled = marginFixed;
-  $('margin-hint').hidden = !(silhouette && !preset);
-  $('preset-hint').hidden = !preset;
+  $('margin').disabled = silhouette;
+  $('margin-hint').hidden = !silhouette;
 }
 
 function updateCliText() {
@@ -337,7 +334,21 @@ drop.addEventListener('drop', (e) => {
   loadFile(e.dataTransfer.files[0]);
 });
 
+let pageUnit = 'mm';
+/** Switching the custom page's unit converts the shown width and height (0.01 in / 0.1 mm). */
+function convertPageUnit() {
+  const next = $('pageUnit').value;
+  if (next === pageUnit) return;
+  for (const id of ['pageWidth', 'pageHeight']) {
+    const v = Number($(id).value);
+    if ($(id).value.trim() === '' || !Number.isFinite(v)) continue;
+    $(id).value = String(next === 'in' ? Math.round((v / 25.4) * 100) / 100 : Math.round(v * 25.4 * 10) / 10);
+  }
+  pageUnit = next;
+}
+
 form.addEventListener('input', (e) => {
+  if (e.target.id === 'pageUnit') convertPageUnit();
   if (e.target.id === 'diameterMode' && e.target.value === 'custom' && !$('diameter').value && lastDiameter) {
     $('diameter').value = String(Number(lastDiameter.toFixed(1)));
   }

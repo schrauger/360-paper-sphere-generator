@@ -6,19 +6,30 @@ import { SILHOUETTE_PRESETS } from '../src/layout/silhouette-presets.js';
 /**
  * RenderOptions (normalizeOptions) from the form's entries (name → string, as FormData gives
  * them). Blank values mean "default"; an absent `outline` checkbox means false.
- * Entries: preset, page ('letter' | … | 'custom'), pageWidth, pageHeight (mm, for 'custom'), dpi,
+ * Entries: page ('letter' | … | 'custom'), pageWidth, pageHeight (in `pageUnit`, 'mm' (default) | 'in', for 'custom'), dpi,
  * diameter, margin, outline, bleedMode ('auto' (the default when blank) | 'off' | 'mm'), bleedMm, marks, yaw, pitch, roll,
  * format, quality, cutFile, ties (checkbox), tieWidth (mm, blank = 0.5), copies ('max' | N, with a diameter). Two choice controls add a mode entry: `diameterMode` ('largest' ignores
  * `diameter`; `preset-<mm>` is a Silhouette preset size; anything else uses `diameter`) and `dpi` = 'custom' (use `dpiCustom`).
  */
+const MM_PER_INCH = 25.4;
+
+/** '<W>x<H>mm' for the custom page fields, converting from inches when pageUnit is 'in' (blank or non-numeric stays as typed so normalizeOptions rejects it). */
+function customPage(e) {
+  const inches = e.pageUnit === 'in';
+  const mm = (v) => {
+    const t = (v ?? '').trim();
+    return inches && t !== '' && Number.isFinite(Number(t)) ? String(Math.round(Number(t) * MM_PER_INCH * 1000) / 1000) : t;
+  };
+  return `${mm(e.pageWidth)}x${mm(e.pageHeight)}mm`;
+}
+
 export function formToOptions(entries) {
   const e = entries;
   const mode = e.diameterMode ?? '';
   const diameter = mode === 'largest' ? '' : mode.startsWith('preset-') ? mode.slice('preset-'.length) : e.diameter;
   const bleed = e.bleedMode === 'off' ? 'off' : e.bleedMode === 'mm' ? e.bleedMm : 'auto';
   return normalizeOptions({
-    preset: e.preset,
-    page: e.page === 'custom' ? `${(e.pageWidth ?? '').trim()}x${(e.pageHeight ?? '').trim()}mm` : e.page,
+    page: e.page === 'custom' ? customPage(e) : e.page,
     dpi: e.dpi === 'custom' ? e.dpiCustom : e.dpi,
     diameterMm: diameter,
     marginMm: e.margin,
@@ -50,7 +61,7 @@ export function cliCommandFor(options, inputName) {
     const silhouettePreset = named === 'letter' && o.marks === 'silhouette' && SILHOUETTE_PRESETS.letter.includes(o.diameterMm);
     if (named !== 'letter' || silhouettePreset) args.push('--page', named ?? `${o.page.widthMm}x${o.page.heightMm}mm`);
   }
-  if (o.dpi !== 300) args.push('--dpi', String(o.dpi));
+  if (o.dpi !== 600) args.push('--dpi', String(o.dpi));
   if (!o.preset) {
     if (o.diameterMm !== null) args.push('--diameter', String(o.diameterMm));
     if (o.diameterMm !== null && o.copies !== 'max') args.push('--copies', String(o.copies));

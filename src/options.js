@@ -3,7 +3,7 @@ import { TIE_WIDTH_MM, TIE_WIDTH_RANGE_MM } from './export/ties.js';
 import { MAX_COPIES } from './layout/pack.js';
 
 /** Page sizes in mm, [width, height]. */
-export const PAGE_SIZES = { letter: [215.9, 279.4], a4: [210, 297], a3: [297, 420], tabloid: [279.4, 431.8] };
+export const PAGE_SIZES = { letter: [215.9, 279.4], a4: [210, 297], a3: [297, 420], tabloid: [279.4, 431.8], '8x10': [203.2, 254] };
 
 const PRESETS = ['original-low', 'original-high'];
 const MARKS = ['none', 'silhouette'];
@@ -83,7 +83,7 @@ function parseTies(ties) {
  */
 export function normalizeOptions(raw = {}) {
   const preset = given(raw.preset) ? oneOf(raw.preset, PRESETS, '--preset') : null;
-  const dpi = given(raw.dpi) ? num(raw.dpi, '--dpi') : 300;
+  const dpi = given(raw.dpi) ? num(raw.dpi, '--dpi') : 600;
   if (dpi < 72 || dpi > 1200) throw new OptionError(`--dpi must be between 72 and 1200 (got ${dpi})`);
   const diameterMm = given(raw.diameterMm) ? num(raw.diameterMm, '--diameter') : null;
   if (diameterMm !== null && diameterMm <= 0) throw new OptionError(`--diameter must be > 0 mm (got ${diameterMm})`);

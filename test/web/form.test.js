@@ -5,7 +5,7 @@ import { OptionError, normalizeOptions } from '../../src/options.js';
 import { cliCommandFor, formToOptions } from '../../web/form.js';
 
 const FULL = {
-  preset: '', page: 'a4', pageWidth: '', pageHeight: '', dpi: '150', diameter: '120', margin: '10',
+  page: 'a4', pageWidth: '', pageHeight: '', dpi: '150', diameter: '120', margin: '10',
   outline: 'on', bleedMode: 'mm', bleedMm: '1.5', marks: 'silhouette', yaw: '-42', pitch: '10.5', roll: '3',
   format: 'jpg', quality: '80', cutFile: 'svg',
 };
@@ -18,7 +18,7 @@ test('formToOptions maps every form field; checkbox absence = false', () => {
   });
   const { outline, ...noOutline } = FULL;
   assert.equal(formToOptions(noOutline).outline, false);
-  assert.equal(formToOptions({ ...FULL, preset: 'original-low' }).preset, 'original-low');
+  assert.equal(formToOptions({ ...FULL, preset: 'original-low' }).preset, null); // the web form has no Preset field
   assert.equal(formToOptions({ ...FULL, bleedMode: 'auto' }).bleedMm, 'auto');
   assert.equal(formToOptions({ ...FULL, bleedMode: 'off' }).bleedMm, 0);
   assert.deepEqual(formToOptions({ ...FULL, page: 'custom', pageWidth: '200', pageHeight: '300' }).page, { widthMm: 200, heightMm: 300 });
@@ -38,7 +38,7 @@ test('formToOptions: diameter and resolution choice controls', () => {
   assert.equal(formToOptions({ ...FULL, diameterMode: 'custom' }).diameterMm, 120);
   assert.equal(formToOptions({ ...FULL, dpi: '1200' }).dpi, 1200);
   assert.equal(formToOptions({ ...FULL, dpi: 'custom', dpiCustom: '450' }).dpi, 450);
-  assert.equal(formToOptions({ ...FULL, dpi: 'custom' }).dpi, 300);
+  assert.equal(formToOptions({ ...FULL, dpi: 'custom' }).dpi, 600);
   assert.throws(() => formToOptions({ ...FULL, dpi: 'custom', dpiCustom: '5000' }), /--dpi/);
 });
 
@@ -97,6 +97,20 @@ test('cliCommandFor omits defaults and round-trips through normalizeOptions', ()
     assert.deepEqual(back, options, cmd);
   }
   assert.match(cliCommandFor(normalizeOptions({ preset: 'original-low', page: 'a3' }), 'a.png'), /^paper-sphere a\.png -o sheet\.pdf --preset original-low$/);
+});
+
+test('8x10 page, custom page units (mm default, in converts), and 600 dpi default', () => {
+  assert.deepEqual(formToOptions({ page: '8x10' }).page, { widthMm: 203.2, heightMm: 254 });
+  assert.equal(formToOptions({}).dpi, 600);
+  const custom = { page: 'custom', pageWidth: '8', pageHeight: '10' };
+  assert.deepEqual(formToOptions(custom).page, { widthMm: 8, heightMm: 10 });
+  assert.deepEqual(formToOptions({ ...custom, pageUnit: 'mm' }).page, { widthMm: 8, heightMm: 10 });
+  assert.deepEqual(formToOptions({ ...custom, pageUnit: 'in' }).page, { widthMm: 203.2, heightMm: 254 });
+  assert.deepEqual(formToOptions({ ...custom, pageUnit: 'in', pageWidth: '8.5', pageHeight: '11' }).page, { widthMm: 215.9, heightMm: 279.4 });
+  assert.throws(() => formToOptions({ ...custom, pageUnit: 'in', pageWidth: '' }), OptionError);
+  assert.match(cliCommandFor(formToOptions({ page: '8x10' }), 'a.jpg'), /--page 8x10/);
+  assert.doesNotMatch(cliCommandFor(formToOptions({}), 'a.jpg'), /--dpi/);
+  assert.match(cliCommandFor(formToOptions({ dpi: '300' }), 'a.jpg'), /--dpi 300/);
 });
 
 test('cliCommandFor quotes awkward input names and writes negative numbers as separate tokens', () => {

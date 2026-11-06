@@ -35,7 +35,7 @@ PDF by default; print it at 100% (actual size, no "fit to page") so the marks li
 
 ```sh
 npm install
-node cli.js panorama.jpg -o sheet.pdf                         # letter page, 300 dpi, prints at 100%
+node cli.js panorama.jpg -o sheet.pdf                         # letter page, 600 dpi, prints at 100%
 node cli.js panorama.jpg -o sheet.png
 node cli.js panorama.jpg -o sheet.png --page a4 --bleed auto --marks silhouette
 node cli.js panorama.jpg -o sheet.jpg --yaw 30 --cut-file svg # also writes sheet.svg
@@ -48,8 +48,8 @@ anything else is an error.
 |---|---|
 | `-o <file>` | Output, `.pdf` (prints at 100%), `.png`, `.jpg` or `.jpeg` (required). |
 | `--preset original-low\|original-high` | 360craft's own sheet sizes (2850×4160 and 5700×8320 px). Ignores `--page`, `--diameter` and `--marks`. |
-| `--page letter\|a4\|a3\|tabloid\|<W>x<H>mm` | Page size (default `letter`). |
-| `--dpi N` | 72–1200 (default 300). |
+| `--page letter\|a4\|a3\|tabloid\|8x10\|<W>x<H>mm` | Page size (default `letter`). |
+| `--dpi N` | 72–1200 (default 600). |
 | `--diameter MM` | Sphere diameter (default: the largest that fits the page). |
 | `--copies max\|N` | Spheres per sheet, with `--diameter` (default `max`: as many pairs as fit in a grid, up to 60 (a heuristic, not a proven maximum); the largest-that-fits size is always one pair). A pair may be turned 90° and neighbouring pairs nest, keeping their cut lines 3 mm apart. `N` (1–60) places exactly N, enlarging the sheet (with a warning) if they do not fit. |
 | `--margin MM` | Margin around the sheet (default 6.35). Ignored with `--marks silhouette`, which uses 10 mm. |
