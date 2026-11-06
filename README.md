@@ -57,7 +57,7 @@ anything else is an error.
 | `--bleed MM\|auto\|off` | Image printed past the cut line (default `auto`, 360craft's bleed; `off` for none). |
 | `--marks silhouette` | Silhouette Studio's Type 1 registration marks at a 10 mm inset; the margin becomes 10 mm. In an SVG cut file the cut lines are red and the marks black, so you can cut by line colour and skip the marks. |
 | `--yaw D`, `--pitch D`, `--roll D` | Panorama orientation in degrees (default 0, which is 360craft's layout). |
-| `--cut-file svg\|dxf` | Also write the cut path as `<out>.svg` or `<out>.dxf`. |
+| `--cut-file svg\|dxf` | Also write the cut path as `<out>.svg` or `<out>.dxf`. SVG cut lines are smooth curves (Bézier arcs and straight lines, tab corners kept sharp), so the cutter does not jitter. |
 | `--quality Q` | JPEG quality 1–100 (default 92). |
 
 ### Silhouette print & cut
