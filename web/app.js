@@ -362,10 +362,13 @@ function download(blob, name) {
   return Object.assign(document.createElement('a'), { href: url, download: name, textContent: name });
 }
 
+const EXTENSIONS = new Map([['application/pdf', 'pdf'], ['image/png', 'png'], ['image/jpeg', 'jpg']]);
+
 function finishRender({ blob, cutFile, diameterMm, warnings }) {
   setRendering(false);
   const base = fileName.replace(/\.[^./\\]+$/, '') || 'panorama';
-  const extension = { 'application/pdf': 'pdf', 'image/png': 'png', 'image/jpeg': 'jpg' }[blob.type];
+  const extension = EXTENSIONS.get(blob.type);
+  if (!extension) throw new Error(`Unexpected sheet type ${blob.type || '(none)'}`);
   const links = [download(blob, `${base}-sheet.${extension}`)];
   if (cutFile) {
     const type = cutFile.type === 'svg' ? 'image/svg+xml' : 'application/dxf';

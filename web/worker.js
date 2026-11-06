@@ -8,10 +8,9 @@ import { MODEL_360CRAFT } from '../src/model/360craft.js';
 import { makeModelGeometry } from '../src/model/geometry.js';
 import { layoutSheet } from '../src/layout/sheet.js';
 import { checkAspect } from '../src/options.js';
-import { rgbFromRgba, sheetPdf } from '../src/export/pdf.js';
 import { layoutOptionsFor, renderSheet, resolveBleed } from '../src/pipeline.js';
 import { makeSheetPreview, renderGlobe, renderPanoramaSeams } from '../src/render/preview.js';
-import { TOO_LARGE_MESSAGE, fitDecodeSize, setJpegDpi, setPngDpi, tooLargeForCanvas } from './imageio.js';
+import { TOO_LARGE_MESSAGE, fitDecodeSize, pdfFromImage, setJpegDpi, setPngDpi, tooLargeForCanvas } from './imageio.js';
 
 const model = MODEL_360CRAFT;
 const PREVIEW_MAX_WIDTH = 2048; // R39: the previews never need the full-resolution texture
@@ -143,15 +142,15 @@ async function runPreview() {
 
 async function render({ options }) {
   if (!fullPano) throw new Error('Load a panorama first');
+  const geometry = makeModelGeometry(model);
+  const layout = layoutSheet(model, geometry.outline, layoutOptionsFor(options));
+  if (tooLargeForCanvas(layout.widthPx, layout.heightPx)) throw new Error(TOO_LARGE_MESSAGE);
   const { image, warnings, diameterMm, cutFile } = renderSheet(fullPano, options);
   if (options.format === 'pdf') {
-    const rgb = rgbFromRgba(image.data);
-    const deflated = new Uint8Array(await new Response(new Blob([rgb]).stream().pipeThrough(new CompressionStream('deflate'))).arrayBuffer());
-    const pdf = sheetPdf({ widthPx: image.width, heightPx: image.height, dpi: options.dpi, rgbDeflated: deflated });
+    const pdf = await pdfFromImage(image, options.dpi);
     post({ type: 'done', blob: new Blob([pdf], { type: 'application/pdf' }), cutFile, diameterMm, warnings });
     return;
   }
-  if (tooLargeForCanvas(image.width, image.height)) throw new Error(TOO_LARGE_MESSAGE);
   const canvas = new OffscreenCanvas(image.width, image.height);
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error(TOO_LARGE_MESSAGE);

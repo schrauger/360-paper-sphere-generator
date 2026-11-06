@@ -1,5 +1,6 @@
 // Pure image helpers for the web app (importable in Node): decode sizing and DPI metadata.
 import { checkAspect } from '../src/options.js';
+import { rgbFromRgba, sheetPdf } from '../src/export/pdf.js';
 
 /** Largest decoded panorama (pixels): the common browser canvas area limit. */
 export const MAX_DECODE_PIXELS = 16_777_216;
@@ -24,6 +25,13 @@ export function fitDecodeSize(w, h, maxPixels = MAX_DECODE_PIXELS) {
   if (aspect.width * aspect.height <= maxPixels) return { width: aspect.width, height: aspect.height, scaled: false };
   const height = Math.max(1, Math.floor(Math.sqrt(maxPixels / 2)));
   return { width: 2 * height, height, scaled: true };
+}
+
+/** The sheet (renderSheet's RGBA image) as a PDF page at dpi, with its RGB pixels deflated in the browser. */
+export async function pdfFromImage(image, dpi) {
+  const rgb = rgbFromRgba(image.data);
+  const deflated = new Uint8Array(await new Response(new Blob([rgb]).stream().pipeThrough(new CompressionStream('deflate'))).arrayBuffer());
+  return sheetPdf({ widthPx: image.width, heightPx: image.height, dpi, rgbDeflated: deflated });
 }
 
 let crcTable;
