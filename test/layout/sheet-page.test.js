@@ -135,3 +135,10 @@ test('dpi 50 and 1500 → RangeError; large sheets pass or throw at 2.5e8 px', (
   // an enlarged sheet is checked too
   assert.throws(() => layoutSheet(MODEL_360CRAFT, outline, { page: A3, dpi: 1100, diameterMm: 5000 }), /Sheet too large/);
 });
+
+test('marginMm must be finite and ≥ 0; the preset path ignores marginMm, marks and page', () => {
+  for (const marginMm of [-1, NaN, Infinity]) assert.throws(() => lay({ marginMm }), RangeError);
+  lay({ marginMm: 0 });
+  const p = layoutSheet(MODEL_360CRAFT, outline, { preset: 'original-low', marginMm: -1, marks: 'silhouette', page: LETTER });
+  assert.deepEqual([p.widthPx, p.heightPx, p.marks], [2850, 4160, []]);
+});

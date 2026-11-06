@@ -19,15 +19,17 @@ const round1 = (v) => Number(v.toFixed(1));
 
 /**
  * SheetLayout { widthPx, heightPx, dpi, pxPerR, pieces: [{ band, affine }], marks, warnings,
- * diameterMm }. Either a preset ('original-low' | 'original-high'; `outline` is then unused, the
- * 360craft placement is fixed) or a page { widthMm, heightMm }: the two pieces keep their
- * layoutLow placement, scaled to the largest size that fits the page (or to `diameterMm`; the
- * sheet is then enlarged, with a warning, if the sphere does not fit) and centred.
+ * diameterMm }. Either a preset ('original-low' | 'original-high') or a page { widthMm, heightMm }.
+ * A preset uses the fixed 360craft placement: `outline`, page, diameterMm, marginMm, marks and the
+ * DPI range are then ignored (dpi only sets the mm ↔ px scale). With a page, the two pieces keep
+ * their layoutLow placement, scaled to the largest size that fits the page (or to `diameterMm`;
+ * the sheet is then enlarged, with a warning, if the sphere does not fit) and centred.
  * marks: 'none' | 'silhouette' (entries in px, x/y = the mark's outer corner).
  */
 export function layoutSheet(model, outline, { preset, page, dpi = 300, diameterMm = null, marginMm = 6.35, marks = 'none' } = {}) {
   if (preset !== undefined || !page) return presetLayout(model, preset, dpi);
   if (!(dpi >= 72 && dpi <= 1200)) throw new RangeError('DPI must be between 72 and 1200');
+  if (!(marginMm >= 0) || !Number.isFinite(marginMm)) throw new RangeError('Margin must be a finite number of mm ≥ 0');
   if (marks !== 'none' && marks !== 'silhouette') throw new RangeError(`Unknown marks: ${marks}. Use none or silhouette`);
   const pxPerMm = dpi / MM_PER_IN;
   checkSheetSize(page.widthMm * pxPerMm, page.heightMm * pxPerMm);

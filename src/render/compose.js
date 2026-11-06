@@ -10,6 +10,7 @@ import { drawMarks } from './marks.js';
  * outline: draw the cut outline. model.style gives the colours and the outline width.
  */
 export function composeSheet(pano, layout, geometry, model, { outline = true, bleedR = 0, rotation }) {
+  if (!rotation) throw new TypeError('composeSheet needs the panorama rotation (see totalRotation)');
   const { style } = model;
   const { outline: pieceOutline } = geometry;
   const img = createImage(layout.widthPx, layout.heightPx, [...style.background, 255]);

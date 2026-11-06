@@ -43,3 +43,7 @@ test('the cut outline is stroked in outlineColor on the cut path, and only when 
   assert.ok(dark.every((v, i) => Math.abs(v - model.style.outlineColor[i]) < 30), `outline pixel ${dark}`);
   assert.ok(px(without, on).every((v) => v > 150), 'no outline without the option: only the anti-aliased tab edge');
 });
+
+test('a missing rotation is a TypeError', () => {
+  assert.throws(() => composeSheet(pano, layout, geometry, model, { outline: false }), TypeError);
+});
