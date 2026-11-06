@@ -167,3 +167,17 @@ test('--margin -1 with a separate token reports the margin range error, not "amb
   assert.doesNotMatch(r.stderr, /ambiguous/);
   assert.match(r.stderr, /--margin must be ≥ 0 mm \(got -1\)/);
 });
+
+test('--ties and --tie-width leave gaps in the SVG cut file', async () => {
+  const input = await makeInput('ties.png', 256, 128);
+  const count = (args) => {
+    const out = join(dir, `ties-${args.length}.png`);
+    const r = run(input, '-o', out, '--dpi', '72', '--cut-file', 'svg', ...args);
+    assert.equal(r.status, 0, r.stderr);
+    return readFileSync(out.replace('.png', '.svg'), 'utf8');
+  };
+  assert.ok(count([]).includes(' Z"'));
+  assert.ok(!count(['--ties']).includes('Z'));
+  assert.ok(!count(['--tie-width', '1']).includes('Z'));
+  assert.equal(run(input, '-o', join(dir, 'x.png'), '--tie-width', '9').status, 2);
+});

@@ -32,7 +32,7 @@ const turnAt = (ring, i) => {
  * corners keep their exact coordinates) and find the corners, the vertices that turn by more
  * than CORNER_ANGLE. Returns { ring, corners } with corners as indices into ring.
  */
-function prepare(points) {
+export function prepare(points) {
   const raw = points.filter((p, i) => len(sub(p, points[(i + 1) % points.length])) > 0);
   const isCorner = raw.map((_, i) => raw.length >= 3 && turnAt(raw, i) > CORNER_ANGLE);
   const ring = []; const flags = [];
@@ -252,5 +252,47 @@ export function simplifyClosed(points) {
     dp(runPoints(ring, a, b), SMOOTH_TOLERANCE_MM, tail);
     out.push(...tail.slice(0, -1));
   });
+  return out;
+}
+
+// Anchors of an open run: both ends plus every interior vertex that turns more than CORNER_ANGLE.
+function openAnchors(pts) {
+  const anchors = [0];
+  for (let i = 1; i < pts.length - 1; i++) {
+    const a = sub(pts[i], pts[i - 1]); const b = sub(pts[i + 1], pts[i]);
+    if (Math.abs(Math.atan2(a[0] * b[1] - a[1] * b[0], dot(a, b))) > CORNER_ANGLE) anchors.push(i);
+  }
+  anchors.push(pts.length - 1);
+  return anchors;
+}
+const dropRepeats = (points) => points.filter((p, i) => i === 0 || len(sub(p, points[i - 1])) > 0);
+
+/**
+ * Smooth an open polyline (mm) into { start, segs } like smoothClosedPath, but not closed: the
+ * first and last points are kept exactly, and interior corners stay sharp.
+ */
+export function smoothOpenPath(points) {
+  const pts = dropRepeats(points);
+  const segs = [];
+  const anchors = openAnchors(pts);
+  for (let k = 0; k + 1 < anchors.length; k++) {
+    const run = pts.slice(anchors[k], anchors[k + 1] + 1);
+    fit(run, tangentAt(run, 0, 1), tangentAt(run, run.length - 1, -1), segs);
+  }
+  return { start: pts[0], segs };
+}
+
+/** An open polyline with collinear runs merged, within SMOOTH_TOLERANCE_MM; ends and corners kept. */
+export function simplifyOpen(points) {
+  const pts = dropRepeats(points);
+  const out = [];
+  const anchors = openAnchors(pts);
+  for (let k = 0; k + 1 < anchors.length; k++) {
+    out.push(pts[anchors[k]]);
+    const tail = [];
+    dp(pts.slice(anchors[k], anchors[k + 1] + 1), SMOOTH_TOLERANCE_MM, tail);
+    out.push(...tail.slice(0, -1));
+  }
+  out.push(pts[pts.length - 1]);
   return out;
 }

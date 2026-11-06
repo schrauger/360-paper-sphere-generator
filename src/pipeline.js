@@ -64,7 +64,7 @@ export function renderSheet(pano, options) {
   });
   const includeMarks = layout.marks.length > 0;
   let cutFile = null;
-  if (options.cutFile === 'svg') cutFile = { type: 'svg', content: cutPathSvg(layout, outline, { includeMarks }) };
-  else if (options.cutFile === 'dxf') cutFile = { type: 'dxf', content: cutPathDxf(layout, outline, { includeMarks }) };
+  if (options.cutFile === 'svg') cutFile = { type: 'svg', content: cutPathSvg(layout, outline, { includeMarks, tieMm: options.tieMm }) };
+  else if (options.cutFile === 'dxf') cutFile = { type: 'dxf', content: cutPathDxf(layout, outline, { includeMarks, tieMm: options.tieMm }) };
   return { image, layout, warnings, diameterMm: layout.diameterMm, cutFile };
 }

@@ -14,7 +14,7 @@ test('formToOptions maps every form field; checkbox absence = false', () => {
   const o = formToOptions(FULL);
   assert.deepEqual(o, {
     preset: null, page: { widthMm: 210, heightMm: 297 }, dpi: 150, diameterMm: 120, marginMm: 10, outline: true,
-    bleedMm: 1.5, marks: 'silhouette', orientation: { yaw: -42, pitch: 10.5, roll: 3 }, format: 'jpg', jpegQuality: 80, cutFile: 'svg',
+    bleedMm: 1.5, marks: 'silhouette', orientation: { yaw: -42, pitch: 10.5, roll: 3 }, format: 'jpg', jpegQuality: 80, cutFile: 'svg', tieMm: null,
   });
   const { outline, ...noOutline } = FULL;
   assert.equal(formToOptions(noOutline).outline, false);
@@ -63,6 +63,8 @@ function parseCommand(cmd) {
     else if (flag === '--margin') raw.marginMm = next();
     else if (flag === '--quality') raw.jpegQuality = next();
     else if (flag === '--cut-file') raw.cutFile = next();
+    else if (flag === '--ties') raw.ties = true;
+    else if (flag === '--tie-width') raw.ties = next();
     else if (['--yaw', '--pitch', '--roll'].includes(flag)) raw.orientation[flag.slice(2)] = next();
     else raw[flag.slice(2)] = next();
   }
@@ -84,6 +86,8 @@ test('cliCommandFor omits defaults and round-trips through normalizeOptions', ()
     normalizeOptions({ preset: 'original-high', dpi: 600, bleed: 2, orientation: { pitch: -20, roll: -5.25 } }),
     normalizeOptions({ page: { widthMm: 200, heightMm: 300 }, format: 'jpg' }),
     normalizeOptions({ page: 'letter', bleed: 'off', marks: 'none', cutFile: 'dxf' }),
+    normalizeOptions({ cutFile: 'svg', ties: true }),
+    normalizeOptions({ cutFile: 'svg', ties: 1.25 }),
   ];
   for (const options of cases) {
     const cmd = cliCommandFor(options, 'photo.jpg');
@@ -111,4 +115,14 @@ test('formToOptions: a Silhouette preset diameter sets diameterMm; studio3 is we
 test('cliCommandFor: a Silhouette preset size is --page letter --marks silhouette --diameter, no studio3 flag', () => {
   const o = formToOptions({ page: 'letter', marks: 'silhouette', diameterMode: 'preset-50', cutFile: 'studio3', outline: 'on' });
   assert.equal(cliCommandFor(o, 'p.jpg'), 'paper-sphere p.jpg -o sheet.pdf --page letter --diameter 50 --marks silhouette');
+});
+
+test('ties: checkbox and width map to tieMm, and cliCommandFor writes --ties or --tie-width', () => {
+  assert.equal(formToOptions({ outline: 'on' }).tieMm, null);
+  assert.equal(formToOptions({ ties: 'on', tieWidth: '' }).tieMm, 0.5);
+  assert.equal(formToOptions({ ties: 'on', tieWidth: '1.2' }).tieMm, 1.2);
+  assert.equal(formToOptions({ tieWidth: '1.2' }).tieMm, null);
+  assert.equal(cliCommandFor(normalizeOptions({ cutFile: 'svg', ties: true }), 'a.jpg'), 'paper-sphere a.jpg -o sheet.pdf --cut-file svg --ties');
+  assert.equal(cliCommandFor(normalizeOptions({ cutFile: 'svg', ties: '1.2' }), 'a.jpg'), 'paper-sphere a.jpg -o sheet.pdf --cut-file svg --tie-width 1.2');
+  assert.throws(() => formToOptions({ ties: 'on', tieWidth: '5' }), OptionError);
 });

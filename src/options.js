@@ -1,4 +1,5 @@
 // Option normalisation shared by the CLI and the web app. Pure: no node-only imports.
+import { TIE_WIDTH_MM, TIE_WIDTH_RANGE_MM } from './export/ties.js';
 
 /** Page sizes in mm, [width, height]. */
 export const PAGE_SIZES = { letter: [215.9, 279.4], a4: [210, 297], a3: [297, 420], tabloid: [279.4, 431.8] };
@@ -51,12 +52,22 @@ function parseBleed(bleed) {
   return mm;
 }
 
+// Tab ties: off (null) unless asked for; `true` means the default width.
+function parseTies(ties) {
+  if (!given(ties) || ties === false) return null;
+  if (ties === true) return TIE_WIDTH_MM;
+  const mm = num(ties, '--tie-width');
+  const [lo, hi] = TIE_WIDTH_RANGE_MM;
+  if (mm < lo || mm > hi) throw new OptionError(`--tie-width must be between ${lo} and ${hi} mm (got ${ties})`);
+  return mm;
+}
+
 /**
  * RenderOptions from raw (CLI or web) input; every field is optional.
  * raw: { preset, page ('letter' | 'a4' | … | '<W>x<H>mm' | {widthMm, heightMm}), dpi, diameterMm,
  * marginMm, outline, bleed (mm | 'auto' | 'off', default 'auto'), marks ('none' | 'silhouette'),
  * orientation {yaw, pitch, roll} (degrees), format ('pdf' | 'png' | 'jpg', default 'pdf'), jpegQuality,
- * cutFile ('svg' | 'dxf') }.
+ * cutFile ('svg' | 'dxf'), ties (false | true | width in mm; true = 0.5 mm, valid 0.1–3) }.
  * A preset fixes the sheet at 360craft's size: page, diameterMm, marginMm and marks are then
  * ignored (and dpi only sets the metadata density and the mm ↔ px scale of bleed and the cut file).
  */
@@ -89,6 +100,7 @@ export function normalizeOptions(raw = {}) {
     format: given(raw.format) ? oneOf(raw.format, FORMATS, '--format') : 'pdf',
     jpegQuality,
     cutFile: given(raw.cutFile) ? oneOf(raw.cutFile, CUT_FILES, '--cut-file') : null,
+    tieMm: parseTies(raw.ties),
   };
 }
 

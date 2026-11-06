@@ -52,6 +52,10 @@ _Avoid_: flap, glue tab, tooth
 The closed boundary of a piece including its tabs, which is what gets cut.
 _Avoid_: outline (when meaning the geometry), cut line, contour
 
+**Tie**:
+A tiny uncut gap in the cut path, centred on a tab's tip (0.5 mm by default), that keeps the piece attached to the sheet until it is punched out. Optional, in the cut files only.
+_Avoid_: bridge, tab (a tab is the glue flap itself)
+
 **Outline**:
 An optional printed line drawn along the cut path to guide hand cutting.
 _Avoid_: border, stroke

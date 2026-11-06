@@ -19,6 +19,8 @@ const USAGE = `Usage: paper-sphere <input> -o <out.pdf|out.png|out.jpg> [options
   --marks silhouette                    Silhouette Studio Type 1 registration marks (10 mm inset; margin 10 mm)
   --yaw D --pitch D --roll D            panorama orientation in degrees
   --cut-file svg|dxf                    also write <out>.svg / <out>.dxf
+  --ties                                leave a 0.5 mm uncut tie at the middle of every tab in the cut file
+  --tie-width MM                        tie width, 0.1–3 mm (implies --ties)
   --quality Q                           JPEG quality 1–100 (default 92)`;
 
 const FORMAT_OF_EXTENSION = new Map([['pdf', 'pdf'], ['png', 'png'], ['jpg', 'jpg'], ['jpeg', 'jpg']]);
@@ -30,7 +32,7 @@ const OPTIONS = {
   outline: { type: 'boolean' }, 'no-outline': { type: 'boolean' },
   bleed: { type: 'string' }, marks: { type: 'string' },
   yaw: { type: 'string' }, pitch: { type: 'string' }, roll: { type: 'string' },
-  'cut-file': { type: 'string' }, quality: { type: 'string' },
+  'cut-file': { type: 'string' }, ties: { type: 'boolean' }, 'tie-width': { type: 'string' }, quality: { type: 'string' },
   help: { type: 'boolean', short: 'h' },
 };
 
@@ -89,6 +91,7 @@ async function main() {
     format,
     jpegQuality: values.quality,
     cutFile: values['cut-file'],
+    ties: values['tie-width'] ?? values.ties,
   });
 
   const decode = (size) => {

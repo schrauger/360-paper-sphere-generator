@@ -128,6 +128,7 @@ function syncFormState() {
   toggleField('custom-diameter', ['diameter'], $('diameterMode').value === 'custom' && !preset);
   toggleField('custom-bleed', ['bleedMm'], $('bleedMode').value === 'mm');
   toggleField('custom-dpi', ['dpiCustom'], $('dpi').value === 'custom');
+  toggleField('custom-tie', ['tieWidth'], $('ties').checked);
   toggleField('custom-quality', ['quality'], $('format').value === 'jpg');
   // Silhouette marks ignore the margin (10 mm); a preset ignores it too. Show that instead of the typed value.
   const marginFixed = silhouette || preset;

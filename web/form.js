@@ -1,5 +1,6 @@
 // The options form ↔ RenderOptions and the equivalent CLI command. Pure (importable in Node).
 import { PAGE_SIZES, normalizeOptions } from '../src/options.js';
+import { TIE_WIDTH_MM } from '../src/export/ties.js';
 import { SILHOUETTE_PRESETS } from '../src/layout/silhouette-presets.js';
 
 /**
@@ -7,7 +8,7 @@ import { SILHOUETTE_PRESETS } from '../src/layout/silhouette-presets.js';
  * them). Blank values mean "default"; an absent `outline` checkbox means false.
  * Entries: preset, page ('letter' | … | 'custom'), pageWidth, pageHeight (mm, for 'custom'), dpi,
  * diameter, margin, outline, bleedMode ('auto' (the default when blank) | 'off' | 'mm'), bleedMm, marks, yaw, pitch, roll,
- * format, quality, cutFile. Two choice controls add a mode entry: `diameterMode` ('largest' ignores
+ * format, quality, cutFile, ties (checkbox), tieWidth (mm, blank = 0.5). Two choice controls add a mode entry: `diameterMode` ('largest' ignores
  * `diameter`; `preset-<mm>` is a Silhouette preset size; anything else uses `diameter`) and `dpi` = 'custom' (use `dpiCustom`).
  */
 export function formToOptions(entries) {
@@ -28,6 +29,7 @@ export function formToOptions(entries) {
     format: e.format,
     jpegQuality: e.quality,
     cutFile: e.cutFile === 'studio3' ? '' : e.cutFile, // .studio3 is a web-only download, not a generated cut file
+    ties: e.ties !== undefined && e.ties !== '' ? (e.tieWidth || true) : false,
   });
 }
 
@@ -58,6 +60,8 @@ export function cliCommandFor(options, inputName) {
   if (!o.preset && o.marks !== 'none') args.push('--marks', o.marks);
   for (const axis of ['yaw', 'pitch', 'roll']) if (o.orientation[axis] !== 0) args.push(`--${axis}`, String(o.orientation[axis]));
   if (o.cutFile) args.push('--cut-file', o.cutFile);
+  if (o.tieMm === TIE_WIDTH_MM) args.push('--ties'); // the default width needs no value
+  else if (o.tieMm !== null) args.push('--tie-width', String(o.tieMm));
   if (o.format === 'jpg' && o.jpegQuality !== 92) args.push('--quality', String(o.jpegQuality));
   return args.join(' ');
 }

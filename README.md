@@ -58,6 +58,8 @@ anything else is an error.
 | `--marks silhouette` | Silhouette Studio's Type 1 registration marks at a 10 mm inset; the margin becomes 10 mm. In an SVG cut file the cut lines are red and the marks black, so you can cut by line colour and skip the marks. |
 | `--yaw D`, `--pitch D`, `--roll D` | Panorama orientation in degrees (default 0, which is 360craft's layout). |
 | `--cut-file svg\|dxf` | Also write the cut path as `<out>.svg` or `<out>.dxf`. SVG cut lines are smooth curves (Bézier arcs and straight lines, tab corners kept sharp), so the cutter does not jitter. |
+| `--ties` | Leave a tie in the cut file: a 0.5 mm uncut bridge at the middle of every tab's tip (and nowhere else), so you can cut the sheet and the pieces stay attached until you punch them out. The cut paths become open runs between the ties. The printed outline is unchanged. |
+| `--tie-width MM` | Tie width, 0.1–3 mm (implies `--ties`). |
 | `--quality Q` | JPEG quality 1–100 (default 92). |
 
 ### Silhouette print & cut
@@ -67,6 +69,8 @@ sheet (a PDF) and the matching `.studio3` cut file beside it. Print the PDF at 1
 fit to page), open the `.studio3` in Silhouette Studio, load the printed sheet and cut. The files
 live in [`studio3/`](studio3/README.md) and are added size by size as they are made (none exist yet); if
 one is missing for a size, the web app says so and you can use the SVG cut file instead.
+
+The `.studio3` files are made without ties; add your own in Studio, or generate the SVGs they come from with `node tools/silhouette-presets.mjs <dir> --ties`. The SVG and DXF cut files from the web app and CLI can include ties (`--ties`).
 
 `node cli.js --help` prints the same list. Node ≥ 22 is needed to run the tests (`npm test`); the
 package itself runs on Node ≥ 20.
