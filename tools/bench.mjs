@@ -1,6 +1,11 @@
-// Timing of the full-sheet render. Run with `npm run bench`.
+// Timing of the full-sheet render and the web previews. Run with `npm run bench`.
 import { normalizeOptions } from '../src/options.js';
 import { renderSheet } from '../src/pipeline.js';
+import { MODEL_360CRAFT } from '../src/model/360craft.js';
+import { makeModelGeometry } from '../src/model/geometry.js';
+import { makeSheetPreview, renderGlobe, renderPanoramaSeams } from '../src/render/preview.js';
+import { totalRotation } from '../src/render/warp.js';
+import { rotationFromYPR } from '../src/sphere/orient.js';
 
 // A smooth synthetic equirectangular panorama (the content does not change the cost).
 function panorama(width, height) {
@@ -31,4 +36,18 @@ const time = (label, fn) => {
   console.log(`${label}: ${Math.round(median(runs))} ms (median of 3)`);
 };
 time('original-high', () => renderSheet(pano, normalizeOptions({ preset: 'original-high' })));
-// The T14 previews (sheet ≤ 50 ms, globe ≤ 30 ms) are added with the web app.
+
+// Previews (budgets: sheet 600×900 ≤ 50 ms, globe 400×400 ≤ 30 ms, panorama view 1200×600 ≤ 50 ms).
+const model = MODEL_360CRAFT;
+const geometry = makeModelGeometry(model);
+const rotation = totalRotation(model, { yaw: 30, pitch: 10, roll: -5 });
+const sheet = makeSheetPreview(model, geometry, {
+  maxWidth: 600,
+  maxHeight: 900,
+  outline: true,
+  bleedR: model.style.bleed,
+  layoutOptions: { preset: 'original-low' },
+});
+time('sheet preview 600×900', () => sheet.render(pano, rotation));
+time('globe 400×400', () => renderGlobe(pano, rotation, rotationFromYPR({ yaw: 20, pitch: 15, roll: 0 }), model, { size: 400 }));
+time('panorama view 1200×600', () => renderPanoramaSeams(pano, rotation, model, { width: 1200 }));

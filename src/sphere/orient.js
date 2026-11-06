@@ -81,13 +81,15 @@ export function orthonormalize(M) {
 }
 
 // lon = atan2(y, x), lat = asin(z); u wraps into [0, W), v is clamped to [0, H].
-export function directionToEquirect(v, W, H) {
+// Writes [u, v] into `out` when given (no allocation in per-pixel loops).
+export function directionToEquirect(v, W, H, out = [0, 0]) {
   const lon = Math.atan2(v[1], v[0]);
-  const lat = Math.asin(Math.max(-1, Math.min(1, v[2] / Math.hypot(v[0], v[1], v[2]))));
+  const lat = Math.asin(Math.max(-1, Math.min(1, v[2] / Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]))));
   let u = ((lon + Math.PI) / (2 * Math.PI)) * W;
   if (u >= W) u -= W;
-  const vv = Math.max(0, Math.min(H, ((Math.PI / 2 - lat) / Math.PI) * H));
-  return [u, vv];
+  out[0] = u;
+  out[1] = Math.max(0, Math.min(H, ((Math.PI / 2 - lat) / Math.PI) * H));
+  return out;
 }
 
 // u, v are pixel-edge coordinates (a pixel centre is at +0.5).
