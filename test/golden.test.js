@@ -1,4 +1,4 @@
-// Golden renders of the shareable fixtures (real panoramas, public domain / CC0; see
+// Golden renders of the shareable fixtures (real panoramas, public domain / free with attribution; see
 // test/fixtures/README.md). Re-renders each fixture × case and compares it with the committed
 // PNG (exact size, MAE ≤ 0.5 per channel) and SVG (identical text).
 // Regenerate with `node tools/update-golden.mjs` after an intended rendering change.

@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { crc32, deflateSync } from 'node:zlib';
+import { crc32, deflateSync, inflateSync } from 'node:zlib';
 import sharp from 'sharp';
-import { fitDecodeSize, setJpegDpi, setPngDpi, tooLargeForCanvas } from '../../web/imageio.js';
+import { fitDecodeSize, pdfFromImage, setJpegDpi, setPngDpi, tooLargeForCanvas } from '../../web/imageio.js';
 
 test('fitDecodeSize(12000, 6000) → ≤ 16,777,216 px, 2:1, scaled true; (4000, 2000) unscaled', () => {
   const big = fitDecodeSize(12000, 6000);
@@ -140,4 +140,19 @@ test('setPngDpi rejects a truncated file, including a partial trailing chunk', a
   const png = await samplePng();
   assert.throws(() => setPngDpi(png.subarray(0, png.length - 5), 300), /Truncated PNG/);
   assert.throws(() => setPngDpi(png.subarray(0, png.length - 12 + 4), 300), /Truncated PNG/);
+});
+
+test('pdfFromImage: 40×20 px at 300 dpi is a 9.6×4.8 pt page, image stream inflates to the RGB bytes of the RGBA input', async () => {
+  const width = 40;
+  const height = 20;
+  const data = new Uint8ClampedArray(width * height * 4).map((_, i) => (i * 5) & 255);
+  const pdf = await pdfFromImage({ width, height, data }, 300);
+  const text = Buffer.from(pdf).toString('latin1');
+  assert.match(text, /\/MediaBox \[0 0 9.6 4.8\]/);
+  const imageAt = text.indexOf('/Subtype /Image');
+  const start = text.indexOf('stream\n', imageAt) + 'stream\n'.length;
+  const len = Number(/\/Length (\d+)/.exec(text.slice(imageAt, start))[1]);
+  const rgb = Buffer.from(inflateSync(pdf.subarray(start, start + len)));
+  const expected = Buffer.from(data.filter((_, i) => i % 4 !== 3));
+  assert.deepEqual(rgb, expected);
 });

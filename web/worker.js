@@ -1,8 +1,8 @@
 // Module worker: decodes the panorama, renders the three previews and the final sheet.
 // Messages in:  { type: 'load', file } | { type: 'preview', rotation, viewRotation, options, sizes? } | { type: 'render', options }
 // Messages out: { type: 'loaded', width, height, scaled, sourceWidth, sourceHeight }
-//               { type: 'frames', sheet, panorama, globe, diameterMm, warnings, sheetMap? }  (ImageBitmaps)
-//               { type: 'done', blob, cutFile, diameterMm, warnings }
+//               { type: 'frames', sheet, panorama, globe, diameterMm, copies, warnings, sheetMap? }  (ImageBitmaps)
+//               { type: 'done', blob, format, cutFile, diameterMm, copies, warnings }  (blob is application/octet-stream: a download, not a viewer open)
 //               { type: 'error', message, context: 'load' | 'preview' | 'render' }
 import { MODEL_360CRAFT } from '../src/model/360craft.js';
 import { makeModelGeometry } from '../src/model/geometry.js';
@@ -10,7 +10,7 @@ import { layoutSheet } from '../src/layout/sheet.js';
 import { checkAspect } from '../src/options.js';
 import { layoutOptionsFor, renderSheet, resolveBleed } from '../src/pipeline.js';
 import { makeSheetPreview, renderGlobe, renderPanoramaSeams } from '../src/render/preview.js';
-import { TOO_LARGE_MESSAGE, fitDecodeSize, setJpegDpi, setPngDpi, tooLargeForCanvas } from './imageio.js';
+import { TOO_LARGE_MESSAGE, fitDecodeSize, pdfFromImage, setJpegDpi, setPngDpi, tooLargeForCanvas } from './imageio.js';
 
 const model = MODEL_360CRAFT;
 const PREVIEW_MAX_WIDTH = 2048; // R39: the previews never need the full-resolution texture
@@ -128,6 +128,7 @@ async function runPreview() {
     const message = {
       type: 'frames', sheet, panorama, globe,
       diameterMm: cache.full.layout.diameterMm,
+      copies: cache.full.layout.copies,
       warnings: [...cache.full.layout.warnings, ...cache.warnings],
     };
     if (!cache.sent) {
@@ -140,12 +141,20 @@ async function runPreview() {
   }
 }
 
+// Sheets are sent as a generic binary type so the browser saves them rather than opening them in a viewer.
+const OCTET_STREAM = 'application/octet-stream';
+
 async function render({ options }) {
   if (!fullPano) throw new Error('Load a panorama first');
   const geometry = makeModelGeometry(model);
   const layout = layoutSheet(model, geometry.outline, layoutOptionsFor(options));
   if (tooLargeForCanvas(layout.widthPx, layout.heightPx)) throw new Error(TOO_LARGE_MESSAGE);
-  const { image, warnings, diameterMm, cutFile } = renderSheet(fullPano, options);
+  const { image, warnings, diameterMm, copies, cutFile } = renderSheet(fullPano, options);
+  if (options.format === 'pdf') {
+    const pdf = await pdfFromImage(image, options.dpi);
+    post({ type: 'done', blob: new Blob([pdf], { type: OCTET_STREAM }), format: 'pdf', cutFile, diameterMm, copies, warnings });
+    return;
+  }
   const canvas = new OffscreenCanvas(image.width, image.height);
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error(TOO_LARGE_MESSAGE);
@@ -161,5 +170,5 @@ async function render({ options }) {
   const encoded = png ? bytes[0] === 0x89 : bytes[0] === 0xff; // browsers hand back another type for a canvas they cannot encode
   if (!encoded) throw new Error(TOO_LARGE_MESSAGE);
   const out = png ? setPngDpi(bytes, options.dpi) : setJpegDpi(bytes, options.dpi);
-  post({ type: 'done', blob: new Blob([out], { type: png ? 'image/png' : 'image/jpeg' }), cutFile, diameterMm, warnings });
+  post({ type: 'done', blob: new Blob([out], { type: OCTET_STREAM }), format: options.format, cutFile, diameterMm, copies, warnings });
 }

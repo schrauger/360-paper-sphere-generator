@@ -7,8 +7,13 @@ import { composeSheet } from './render/compose.js';
 import { MAX_BLEED_R, totalRotation } from './render/warp.js';
 import { cutPathSvg } from './export/svg.js';
 import { cutPathDxf } from './export/dxf.js';
+import { layoutInMm } from './export/pieces.js';
+import { markOutlines } from './render/marks.js';
+import { tieWarnings } from './export/ties.js';
 
 const MM_PER_IN = 25.4;
+/** The largest PDF page side some viewers (Acrobat) accept: 200 in. */
+export const PDF_PAGE_LIMIT_MM = 200 * MM_PER_IN;
 
 /**
  * sec²d at the body's band edge: the stretch the flat map applies across the cut edge (R25/R27),
@@ -20,12 +25,19 @@ export function edgeStretch(model = MODEL_360CRAFT) {
   return 1 / Math.cos(d) ** 2;
 }
 
+/** [] or [warning]: a PDF page with a side over PDF_PAGE_LIMIT_MM (the sheet is widthPx × heightPx at dpi). */
+export function pdfPageWarnings(widthPx, heightPx, dpi) {
+  const [wMm, hMm] = [widthPx, heightPx].map((px) => (px / dpi) * MM_PER_IN);
+  if (Math.max(wMm, hMm) <= PDF_PAGE_LIMIT_MM) return [];
+  return [`PDF page is ${Math.round(wMm)}×${Math.round(hMm)} mm, over the 5080 mm (200 in) limit some PDF viewers enforce`];
+}
+
 /** The layoutSheet arguments for `options` (a preset fixes the sheet; otherwise the page and its extras). */
 export function layoutOptionsFor(options) {
   const { preset, dpi } = options;
   return preset
     ? { preset, dpi }
-    : { page: options.page, dpi, diameterMm: options.diameterMm, marginMm: options.marginMm, marks: options.marks };
+    : { page: options.page, dpi, diameterMm: options.diameterMm, marginMm: options.marginMm, marks: options.marks, copies: options.copies };
 }
 
 /** { bleedR, warnings }: the sphere bleed (R units) for options.bleedMm on `layout`, clamped to MAX_BLEED_R (R31). */
@@ -43,7 +55,7 @@ export function resolveBleed(options, layout, model = MODEL_360CRAFT) {
 }
 
 /**
- * { image: RGBAImage, layout, warnings, diameterMm, cutFile: null | { type, content } } for the
+ * { image: RGBAImage, layout, warnings, diameterMm, copies, cutFile: null | { type, content } } for the
  * panorama `pano` (RGBAImage, exactly 2:1) and `options` (normalizeOptions output). Library
  * RangeErrors from the layout (page too small, sheet too large, …) propagate.
  */
@@ -62,9 +74,13 @@ export function renderSheet(pano, options) {
     bleedR,
     rotation: totalRotation(model, options.orientation),
   });
+  if (options.format === 'pdf') warnings.push(...pdfPageWarnings(image.width, image.height, options.dpi));
   const includeMarks = layout.marks.length > 0;
+  if (options.cutFile && options.tieMm && layout.pieces.length) {
+    warnings.push(...tieWarnings(layoutInMm(layout, outline, false, markOutlines).cuts[0], options.tieMm));
+  }
   let cutFile = null;
-  if (options.cutFile === 'svg') cutFile = { type: 'svg', content: cutPathSvg(layout, outline, { includeMarks }) };
-  else if (options.cutFile === 'dxf') cutFile = { type: 'dxf', content: cutPathDxf(layout, outline, { includeMarks }) };
-  return { image, layout, warnings, diameterMm: layout.diameterMm, cutFile };
+  if (options.cutFile === 'svg') cutFile = { type: 'svg', content: cutPathSvg(layout, outline, { includeMarks, tieMm: options.tieMm }) };
+  else if (options.cutFile === 'dxf') cutFile = { type: 'dxf', content: cutPathDxf(layout, outline, { includeMarks, tieMm: options.tieMm }) };
+  return { image, layout, warnings, diameterMm: layout.diameterMm, copies: layout.copies, cutFile };
 }

@@ -1,4 +1,6 @@
 // Option normalisation shared by the CLI and the web app. Pure: no node-only imports.
+import { TIE_WIDTH_MM, TIE_WIDTH_RANGE_MM } from './export/ties.js';
+import { MAX_COPIES } from './layout/pack.js';
 
 /** Page sizes in mm, [width, height]. */
 export const PAGE_SIZES = { letter: [215.9, 279.4], a4: [210, 297], a3: [297, 420], tabloid: [279.4, 431.8] };
@@ -6,6 +8,7 @@ export const PAGE_SIZES = { letter: [215.9, 279.4], a4: [210, 297], a3: [297, 42
 const PRESETS = ['original-low', 'original-high'];
 const MARKS = ['none', 'silhouette'];
 const CUT_FILES = ['svg', 'dxf'];
+const FORMATS = ['pdf', 'png', 'jpg'];
 
 /** Thrown for a bad option value; the message names the option (as the CLI flag). */
 export class OptionError extends Error {
@@ -50,11 +53,31 @@ function parseBleed(bleed) {
   return mm;
 }
 
+// Spheres per sheet: 'max' (as many as fit) or a whole number from 1 to MAX_COPIES.
+function parseCopies(copies) {
+  if (!given(copies) || copies === 'max') return 'max';
+  const n = num(copies, '--copies');
+  if (!Number.isInteger(n) || n < 1) throw new OptionError(`--copies must be max or a whole number from 1 to ${MAX_COPIES} (got ${copies})`);
+  if (n > MAX_COPIES) throw new OptionError(`--copies must be at most ${MAX_COPIES} (got ${copies})`);
+  return n;
+}
+
+// Tab ties: off (null) unless asked for; `true` means the default width.
+function parseTies(ties) {
+  if (!given(ties) || ties === false) return null;
+  if (ties === true) return TIE_WIDTH_MM;
+  const mm = num(ties, '--tie-width');
+  const [lo, hi] = TIE_WIDTH_RANGE_MM;
+  if (mm < lo || mm > hi) throw new OptionError(`--tie-width must be between ${lo} and ${hi} mm (got ${ties})`);
+  return mm;
+}
+
 /**
  * RenderOptions from raw (CLI or web) input; every field is optional.
  * raw: { preset, page ('letter' | 'a4' | … | '<W>x<H>mm' | {widthMm, heightMm}), dpi, diameterMm,
- * marginMm, outline, bleed (mm | 'auto' | 'off'), marks ('none' | 'silhouette'),
- * orientation {yaw, pitch, roll} (degrees), format ('png' | 'jpg'), jpegQuality, cutFile ('svg' | 'dxf') }.
+ * marginMm, outline, bleed (mm | 'auto' | 'off', default 'auto'), marks ('none' | 'silhouette'),
+ * orientation {yaw, pitch, roll} (degrees), format ('pdf' | 'png' | 'jpg', default 'pdf'), jpegQuality,
+ * copies ('max' | N: spheres per sheet; with a diameter, as many as fit or exactly N), cutFile ('svg' | 'dxf'), ties (false | true | width in mm; true = 0.5 mm, valid 0.1–3) }.
  * A preset fixes the sheet at 360craft's size: page, diameterMm, marginMm and marks are then
  * ignored (and dpi only sets the metadata density and the mm ↔ px scale of bleed and the cut file).
  */
@@ -81,12 +104,14 @@ export function normalizeOptions(raw = {}) {
     diameterMm,
     marginMm,
     outline: raw.outline ?? true,
-    bleedMm: given(raw.bleed) ? parseBleed(raw.bleed) : 0,
+    bleedMm: given(raw.bleed) ? parseBleed(raw.bleed) : 'auto',
     marks: given(raw.marks) ? oneOf(raw.marks, MARKS, '--marks') : 'none',
     orientation,
-    format: given(raw.format) ? oneOf(raw.format, ['png', 'jpg'], '--format') : 'png',
+    format: given(raw.format) ? oneOf(raw.format, FORMATS, '--format') : 'pdf',
     jpegQuality,
+    copies: parseCopies(raw.copies),
     cutFile: given(raw.cutFile) ? oneOf(raw.cutFile, CUT_FILES, '--cut-file') : null,
+    tieMm: parseTies(raw.ties),
   };
 }
 

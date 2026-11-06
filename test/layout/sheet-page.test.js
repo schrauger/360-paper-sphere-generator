@@ -26,9 +26,9 @@ test('silhouette marks at exact px', () => {
   const mm = (v) => (v / 25.4) * dpi;
   const l = lay({ marks: 'silhouette', dpi });
   const [sq, tr, bl] = l.marks;
-  assert.deepEqual(sq, { type: 'square', x: mm(9.74), y: mm(9.74), size: mm(5.5) });
-  assert.deepEqual(tr, { type: 'corner', corner: 'top-right', x: mm(215.9 - 22.44), y: mm(9.74), leg: mm(10), stroke: mm(0.5) });
-  assert.deepEqual(bl, { type: 'corner', corner: 'bottom-left', x: mm(9.74), y: mm(279.4 - 35.14), leg: mm(10), stroke: mm(0.5) });
+  assert.deepEqual(sq, { type: 'square', x: mm(9.75), y: mm(9.75), size: mm(5.55) });
+  assert.deepEqual(tr, { type: 'corner', corner: 'top-right', x: mm(215.9 - 9.75), y: mm(9.75), leg: mm(13.65), stroke: mm(0.54) });
+  assert.deepEqual(bl, { type: 'corner', corner: 'bottom-left', x: mm(9.75), y: mm(279.4 - 9.75), leg: mm(13.65), stroke: mm(0.54) });
   assert.equal(l.marks.length, 3);
 });
 
@@ -51,7 +51,7 @@ test('page fit: every cut-path point inside the content rect and ≥ 3 mm from e
   for (const page of [LETTER, A3, { widthMm: 210, heightMm: 297 }]) {
     const l = layoutSheet(MODEL_360CRAFT, outline, { page, marks: 'silhouette' });
     const mm = (v) => (v / 25.4) * 300;
-    const rect = [mm(9.74), mm(9.74), mm(page.widthMm - 22.44), mm(page.heightMm - 35.14)];
+    const rect = [mm(10), mm(10), mm(page.widthMm - 10), mm(page.heightMm - 10)];
     assert.equal(violates(l, rect), false);
   }
   // without marks: inside the margin
@@ -66,7 +66,7 @@ test('page fit is maximal: pxPerR × 1.01 violates a constraint', () => {
     const mm = (v) => (v / 25.4) * 300;
     const rect = marks === 'none'
       ? [mm(6.35), mm(6.35), l.widthPx - mm(6.35), l.heightPx - mm(6.35)]
-      : [mm(9.74), mm(9.74), mm(215.9 - 22.44), mm(279.4 - 35.14)];
+      : [mm(10), mm(10), mm(215.9 - 10), mm(279.4 - 10)];
     const f = 1.01;
     const grown = {
       ...l,
@@ -111,7 +111,25 @@ test('diameterMm 400 on letter → warning "does not fit" and an enlarged sheet'
   const m = layoutSheet(MODEL_360CRAFT, outline, { page: LETTER, diameterMm: 400, marks: 'silhouette', dpi: 150 });
   assert.ok(m.warnings[0].includes('enlarged'));
   const mm = (v) => (v / 25.4) * 150;
-  assert.equal(violates(m, [mm(9.74), mm(9.74), m.widthPx - mm(22.44), m.heightPx - mm(35.14)]), false);
+  assert.equal(violates(m, [mm(10), mm(10), m.widthPx - mm(10), m.heightPx - mm(10)]), false);
+});
+
+test('letter with marks fills the page symmetrically; marginMm is ignored with marks', () => {
+  for (const page of [LETTER, A3, { widthMm: 210, heightMm: 297 }]) {
+    const l = layoutSheet(MODEL_360CRAFT, outline, { page, marks: 'silhouette', marginMm: 40 });
+    const d = layoutSheet(MODEL_360CRAFT, outline, { page, marks: 'silhouette' });
+    assert.equal(l.pxPerR, d.pxPerR);
+    assert.deepEqual(l.pieces, d.pieces);
+    const pts = cutPoints(l);
+    const px = (v) => (v / 25.4) * 300;
+    const gaps = [
+      Math.min(...pts.map((q) => q[0])), l.widthPx - Math.max(...pts.map((q) => q[0])),
+      Math.min(...pts.map((q) => q[1])), l.heightPx - Math.max(...pts.map((q) => q[1])),
+    ];
+    // the binding axis is centred in the 10 mm content rectangle
+    assert.ok(Math.abs(gaps[0] - gaps[1]) < px(0.5) && Math.abs(gaps[2] - gaps[3]) < px(0.5), gaps.join(' '));
+    assert.ok(Math.min(...gaps) >= px(10) - 1e-6);
+  }
 });
 
 test('a diameter under 30 mm warns', () => {

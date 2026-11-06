@@ -12,7 +12,14 @@ import { transformPts } from './raster.js';
 const FLAT_STRETCH = 1.25; // ≥ flat/sphere distance ratio across the edge (sec²d ≈ 1.07 at the body)
 const AA_PX = 1; // the alpha ramp reaches 0.5 px (sheet) outside the edge; 1 px of slack
 const D_MAX = 0.3; // |d| of the band edge plus bleed (develop.js); s guesses are sampled within it
-const MAX_PIECES = 8; // the per-cell masks are Uint8Array bitmasks
+const MAX_PIECES = 120; // piece indices live in Int8Array cells
+const NONE = -1;
+const MANY = -2;
+// Fold piece k into a cell's record: NONE → k, k → k, another piece → MANY.
+const addTo = (arr, i, k) => {
+  const v = arr[i];
+  arr[i] = v === NONE || v === k ? k : MANY; // (a MANY cell stays MANY)
+};
 const INTERIOR_PX = 3; // an interior cell is at least this far inside the edge (flat sheet px)
 
 /**
@@ -27,14 +34,13 @@ export function buildGuide(layout, geometry, { bleedR = 0, cellPx = 8 } = {}) {
   const { unrolling, outline } = geometry;
   const cols = Math.ceil(layout.widthPx / cellPx);
   const rows = Math.ceil(layout.heightPx / cellPx);
-  const mask = new Uint8Array(cols * rows); // bit k: piece k reaches the cell
-  const inside = new Uint8Array(cols * rows); // bit k: the cell's centre is inside piece k
-  const near = new Uint8Array(cols * rows); // bit k: the cell comes within INTERIOR_PX of k's edge
+  const mask = new Int8Array(cols * rows).fill(NONE); // the piece reaching the cell, NONE or MANY
+  const inside = new Int8Array(cols * rows).fill(NONE); // the piece whose edge contains the cell's centre
+  const near = new Int8Array(cols * rows).fill(NONE); // the piece whose edge comes within INTERIOR_PX of the cell
   const margin = bleedR * layout.pxPerR * FLAT_STRETCH + AA_PX;
   const nearMargin = Math.max(margin, INTERIOR_PX);
 
   layout.pieces.forEach((piece, k) => {
-    const bit = 1 << k;
     const poly = transformPts(outline.edge, piece.affine);
     const n = poly.length;
     // Cells whose box comes within `margin` (and `nearMargin`) of an edge segment
@@ -44,7 +50,7 @@ export function buildGuide(layout, geometry, { bleedR = 0, cellPx = 8 } = {}) {
       const a1 = Math.min(cols - 1, Math.floor((Math.max(x0, x1) + r) / cellPx));
       const b0 = Math.max(0, Math.floor((Math.min(y0, y1) - r) / cellPx));
       const b1 = Math.min(rows - 1, Math.floor((Math.max(y0, y1) + r) / cellPx));
-      for (let b = b0; b <= b1; b++) for (let a = a0; a <= a1; a++) target[b * cols + a] |= bit;
+      for (let b = b0; b <= b1; b++) for (let a = a0; a <= a1; a++) addTo(target, b * cols + a, k);
     };
     for (let i = 0; i < n; i++) {
       const [x0, y0] = poly[i];
@@ -71,31 +77,33 @@ export function buildGuide(layout, geometry, { bleedR = 0, cellPx = 8 } = {}) {
         const a0 = Math.max(0, Math.ceil(xs[i] / cellPx - 0.5));
         const a1 = Math.min(cols - 1, Math.floor(xs[i + 1] / cellPx - 0.5));
         for (let a = a0; a <= a1; a++) {
-          mask[b * cols + a] |= bit;
-          inside[b * cols + a] |= bit;
+          addTo(mask, b * cols + a, k);
+          addTo(inside, b * cols + a, k);
         }
       }
     }
   });
 
   // Dilate by one cell (8-neighbourhood).
-  const dilated = new Uint8Array(mask.length);
+  const dilated = new Int8Array(mask.length).fill(NONE);
   for (let b = 0; b < rows; b++) {
     for (let a = 0; a < cols; a++) {
       const m = mask[b * cols + a];
-      if (!m) continue;
+      if (m === NONE) continue;
       for (let bb = Math.max(0, b - 1); bb <= Math.min(rows - 1, b + 1); bb++) {
-        for (let aa = Math.max(0, a - 1); aa <= Math.min(cols - 1, a + 1); aa++) dilated[bb * cols + aa] |= m;
+        for (let aa = Math.max(0, a - 1); aa <= Math.min(cols - 1, a + 1); aa++) {
+          if (m === MANY) dilated[bb * cols + aa] = MANY;
+          else addTo(dilated, bb * cols + aa, m);
+        }
       }
     }
   }
   const piece = new Int8Array(mask.length);
   const interior = new Uint8Array(mask.length);
   for (let i = 0; i < mask.length; i++) {
-    const m = dilated[i];
-    piece[i] = m === 0 ? -1 : (m & (m - 1)) !== 0 ? -2 : 31 - Math.clz32(m);
+    piece[i] = dilated[i];
     // Centre inside and no edge within INTERIOR_PX of the cell: the whole cell is inside.
-    if (piece[i] >= 0 && inside[i] === m && near[i] === 0) interior[i] = 1;
+    if (piece[i] >= 0 && inside[i] === piece[i] && near[i] === NONE) interior[i] = 1;
   }
 
   // s guesses: strip samples (s, d) about cellPx/2 apart in the flat.

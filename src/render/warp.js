@@ -9,7 +9,7 @@
 // The unrolling tears ≈ 0.034 R outside the edge near the tips, so bleedR is clamped to
 // MAX_BLEED_R (with a warning).
 import { directionToEquirect, mul, rotationFromYPR, rotZ } from '../sphere/orient.js';
-import { blend } from './raster.js';
+import { blend, transformPts } from './raster.js';
 import { buildGuide } from './guide.js';
 import { sampleEquirect } from './sample.js';
 
@@ -43,7 +43,11 @@ export function makePixelMapper(layout, geometry, { bleedR = 0 } = {}) {
   const guide = buildGuide(layout, geometry, { bleedR });
   const pieces = layout.pieces.map(({ band, affine: [a, b, c, d, e, f] }) => {
     const det = a * d - b * c;
+    const edge = transformPts(geometry.outline.edge, [a, b, c, d, e, f]);
+    const reach = bleedR * pxPerR * 1.25 + 2; // bleed (stretched) plus the anti-aliasing ramp
     return {
+      box: edge.reduce((m, [x, y]) => [Math.min(m[0], x), Math.min(m[1], y), Math.max(m[2], x), Math.max(m[3], y)], [Infinity, Infinity, -Infinity, -Infinity])
+        .map((v, i) => (i < 2 ? v - reach : v + reach)),
       inv: [d / det, -b / det, -c / det, a / det, e, f], // (x − e, y − f) ↦ (X, Y)
       rot: rotZ(band * Math.PI),
       lastX: NaN,
@@ -93,6 +97,8 @@ export function makePixelMapper(layout, geometry, { bleedR = 0 } = {}) {
     // Two pieces reach this cell: the one that covers the pixel most.
     let best = 0;
     for (let i = 0; i < pieces.length; i++) {
+      const [bx0, by0, bx1, by1] = pieces[i].box;
+      if (x < bx0 || x > bx1 || y < by0 || y > by1) continue; // many copies: skip pieces that cannot reach here
       const alpha = mapPiece(i, x, y, tmp, NaN, false);
       if (alpha > best) {
         best = alpha;

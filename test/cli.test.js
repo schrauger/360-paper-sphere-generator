@@ -34,6 +34,16 @@ test('--page letter --dpi 72 → 612×792 PNG with density 72', async () => {
   assert.deepEqual([m.width, m.height, m.density], [612, 792, 72]);
 });
 
+test('-o x.pdf writes a PDF page of the sheet size (letter at 300 dpi)', async () => {
+  const input = await makeInput('p.png', 64, 32);
+  const out = join(dir, 'p-out.pdf');
+  const r = run(input, '-o', out);
+  assert.equal(r.status, 0, r.stderr);
+  const pdf = readFileSync(out, 'latin1');
+  assert.ok(pdf.startsWith('%PDF-1.4'));
+  assert.match(pdf, /\/MediaBox \[0 0 612 792\]/);
+});
+
 test('--preset original-low → 2850×4160', async () => {
   const input = await makeInput('b.png', 512, 256);
   const out = join(dir, 'b-out.png');
@@ -100,6 +110,12 @@ test('--cut-file svg writes out.svg next to out.png', async () => {
   assert.match(readFileSync(join(dir, 's-out.dxf'), 'utf8'), /ENTITIES/);
 });
 
+test('usage gives bleed auto as the default', () => {
+  const r = run('--help');
+  assert.equal(r.status, 0);
+  assert.match(r.stdout, /--bleed MM\|auto\|off\s+.*\(default auto\)/);
+});
+
 test('--bleed larger than the supported width is limited with a warning', async () => {
   const input = await makeInput('w.png', 64, 32);
   const r = run(input, '-o', join(dir, 'w-out.png'), '--dpi', '72', '--bleed', '50');
@@ -150,4 +166,31 @@ test('--margin -1 with a separate token reports the margin range error, not "amb
   assert.equal(r.status, 2);
   assert.doesNotMatch(r.stderr, /ambiguous/);
   assert.match(r.stderr, /--margin must be ≥ 0 mm \(got -1\)/);
+});
+
+test('--ties and --tie-width leave gaps in the SVG cut file', async () => {
+  const input = await makeInput('ties.png', 256, 128);
+  const count = (args) => {
+    const out = join(dir, `ties-${args.length}.png`);
+    const r = run(input, '-o', out, '--dpi', '72', '--cut-file', 'svg', ...args);
+    assert.equal(r.status, 0, r.stderr);
+    return readFileSync(out.replace('.png', '.svg'), 'utf8');
+  };
+  assert.ok(count([]).includes(' Z"'));
+  assert.ok(!count(['--ties']).includes('Z'));
+  assert.ok(!count(['--tie-width', '1']).includes('Z'));
+  assert.equal(run(input, '-o', join(dir, 'x.png'), '--tie-width', '9').status, 2);
+  assert.match(run(input, '-o', join(dir, 'y.png'), '--dpi', '72', '--ties').stderr, /--ties has no effect without --cut-file/);
+});
+
+test('--copies: several spheres with a small --diameter are reported; N without --diameter warns', async () => {
+  const input = await makeInput('copies.png', 64, 32);
+  const r = run(input, '-o', join(dir, 'c1.png'), '--dpi', '72', '--diameter', '40', '--cut-file', 'svg');
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stderr, /2 spheres on this sheet/);
+  const one = run(input, '-o', join(dir, 'c2.png'), '--dpi', '72', '--diameter', '40', '--copies', '1');
+  assert.equal(one.status, 0, one.stderr);
+  assert.doesNotMatch(one.stderr, /spheres on this sheet/);
+  assert.match(run(input, '-o', join(dir, 'c3.png'), '--dpi', '72', '--copies', '2').stderr, /--copies needs --diameter/);
+  assert.equal(run(input, '-o', join(dir, 'c4.png'), '--copies', '0').status, 2);
 });

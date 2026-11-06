@@ -7,6 +7,7 @@ import { totalRotation } from '../src/render/warp.js';
 import { apply, equirectToDirection } from '../src/sphere/orient.js';
 import { dragPhoto, orbitView, rollPhoto, userYPR } from '../src/interact/drag.js';
 import { cliCommandFor, formToOptions } from './form.js';
+import { SILHOUETTE_PRESETS, studio3Path } from '../src/layout/silhouette-presets.js';
 
 const $ = (id) => document.getElementById(id);
 const form = $('options');
@@ -45,12 +46,113 @@ function currentOptions() {
   }
 }
 
+// Show a conditional field only when its choice asks for it; hidden fields are disabled so FormData skips them.
+function toggleField(wrapperId, inputIds, on) {
+  $(wrapperId).hidden = !on;
+  for (const id of inputIds) $(id).disabled = !on;
+}
+
+let savedMargin = null; // the user's margin while Silhouette marks force 10 mm
+
+// ---- Silhouette preset sizes ---------------------------------------------------------------
+
+const presetOptions = SILHOUETTE_PRESETS.letter.map((mm) => Object.assign(document.createElement('option'), {
+  value: `preset-${mm}`, textContent: `${mm} mm · Silhouette cut file`,
+}));
+const isPresetMode = (mode) => mode.startsWith('preset-');
+
+/** Preset diameters are offered only for Letter + Silhouette marks (and no 360craft preset); otherwise they are removed and a chosen preset size becomes the same size as a Custom diameter. */
+function syncPresetChoices(presetSheet) {
+  const select = $('diameterMode');
+  const offer = !presetSheet && $('page').value === 'letter' && $('marks').value === 'silhouette';
+  const listed = presetOptions[0].parentNode === select;
+  if (offer && !listed) select.append(...presetOptions);
+  else if (!offer && listed) {
+    const chosen = isPresetMode(select.value) ? select.value.slice('preset-'.length) : null;
+    presetOptions.forEach((o) => o.remove());
+    if (chosen) {
+      select.value = 'custom';
+      $('diameter').value = chosen;
+    }
+  }
+  const preset = isPresetMode(select.value);
+  $('studio3-option').disabled = !preset;
+  if (!preset && $('cutFile').value === 'studio3') $('cutFile').value = '';
+}
+
+const studio3Exists = new Map(); // repo-relative path → Promise<boolean>
+function hasStudio3(path) {
+  if (!studio3Exists.has(path)) {
+    const url = new URL(`../${path}`, import.meta.url);
+    studio3Exists.set(path, fetch(url, { method: 'HEAD' }).then((r) => r.ok, () => false));
+  }
+  return studio3Exists.get(path);
+}
+
+let studio3Token = 0;
+/** Beside the sheet download: a link to the committed .studio3 for the chosen preset, or a note that it is not available yet. */
+async function showStudio3() {
+  const status = $('studio3-status');
+  const mode = $('diameterMode').value;
+  const wanted = $('cutFile').value === 'studio3' && isPresetMode(mode);
+  const token = ++studio3Token;
+  if (!wanted) {
+    status.hidden = true;
+    status.replaceChildren();
+    return;
+  }
+  if ($('copies').value !== 'max') {
+    // The committed files are made with the maximum number of spheres per sheet.
+    status.textContent = 'The Silhouette cut file matches "As many as fit" only; the SVG and DXF cut files work with any count.';
+    status.hidden = false;
+    return;
+  }
+  const path = studio3Path('letter', Number(mode.slice('preset-'.length)));
+  const exists = await hasStudio3(path);
+  if (token !== studio3Token) return;
+  if (exists) {
+    const name = path.split('/').pop();
+    status.replaceChildren('Silhouette cut file: ', Object.assign(document.createElement('a'), {
+      href: new URL(`../${path}`, import.meta.url).href, download: name, textContent: name,
+    }));
+  } else {
+    status.textContent = "The Silhouette cut file for this size isn't available yet; use the SVG cut file instead.";
+  }
+  status.hidden = false;
+}
+
 function syncFormState() {
   const preset = $('preset').value !== '';
-  $('page-fields').disabled = preset;
-  $('custom-page').hidden = $('page').value !== 'custom';
-  $('bleedMm').disabled = $('bleedMode').value !== 'mm';
-  $('quality').disabled = $('format').value !== 'jpg';
+  const silhouette = $('marks').value === 'silhouette';
+  syncPresetChoices(preset);
+  for (const id of ['page', 'pageWidth', 'pageHeight', 'diameterMode', 'diameter']) $(id).disabled = preset;
+  for (const button of document.querySelectorAll('[data-marks]')) {
+    button.disabled = preset;
+    button.setAttribute('aria-pressed', String(button.dataset.marks === $('marks').value));
+  }
+  toggleField('custom-page', ['pageWidth', 'pageHeight'], $('page').value === 'custom' && !preset);
+  toggleField('custom-diameter', ['diameter'], $('diameterMode').value === 'custom' && !preset);
+  // Spheres per sheet matters only with a chosen diameter (Largest is always one pair).
+  toggleField('copies-field', ['copies'], $('diameterMode').value !== 'largest' && !preset);
+  toggleField('custom-bleed', ['bleedMm'], $('bleedMode').value === 'mm');
+  toggleField('custom-dpi', ['dpiCustom'], $('dpi').value === 'custom');
+  const cutting = ['svg', 'dxf'].includes($('cutFile').value);
+  $('ties').disabled = !cutting;
+  $('ties-field').hidden = !cutting;
+  toggleField('custom-tie', ['tieWidth'], cutting && $('ties').checked);
+  toggleField('custom-quality', ['quality'], $('format').value === 'jpg');
+  // Silhouette marks ignore the margin (10 mm); a preset ignores it too. Show that instead of the typed value.
+  const marginFixed = silhouette || preset;
+  if (silhouette && !preset && savedMargin === null) {
+    savedMargin = $('margin').value;
+    $('margin').value = '10';
+  } else if (!(silhouette && !preset) && savedMargin !== null) {
+    $('margin').value = savedMargin;
+    savedMargin = null;
+  }
+  $('margin').disabled = marginFixed;
+  $('margin-hint').hidden = !(silhouette && !preset);
+  $('preset-hint').hidden = !preset;
 }
 
 function updateCliText() {
@@ -67,6 +169,7 @@ function showOrientation() {
   for (const name of ORIENTATION_FIELDS) {
     const field = $(name);
     if (document.activeElement !== field) field.value = fmt(ypr[name]);
+    $(`${name}-range`).value = fmt(ypr[name]);
   }
 }
 
@@ -75,7 +178,20 @@ function orientationFromFields() {
   if (Object.values(ypr).every(Number.isFinite)) rotation = totalRotation(model, ypr);
 }
 
-for (const name of ORIENTATION_FIELDS) $(name).addEventListener('input', orientationFromFields);
+// Each dial is a number field (the one named input, typed values may exceed the range) and a range slider
+// that mirrors it (the thumb clamps).
+for (const name of ORIENTATION_FIELDS) {
+  $(name).addEventListener('input', () => {
+    $(`${name}-range`).value = $(name).value;
+    orientationFromFields();
+    orientationChanged();
+  });
+  $(`${name}-range`).addEventListener('input', () => {
+    $(name).value = $(`${name}-range`).value;
+    orientationFromFields();
+    orientationChanged();
+  });
+}
 
 function orientationChanged() {
   showOrientation();
@@ -117,6 +233,15 @@ function previewDone() {
   }
 }
 
+let lastDiameter = null;
+
+function showDiameter(diameterMm, copies = 1) {
+  const count = copies > 1 ? ` · ${copies} spheres on this sheet` : '';
+  $('info').textContent = `Sphere diameter: ${diameterMm.toFixed(1)} mm${count}`;
+  $('largest-option').textContent = `Largest (${diameterMm.toFixed(1)} mm)`;
+  if ($('diameterMode').value === 'largest') lastDiameter = diameterMm;
+}
+
 function showWarnings(warnings) {
   const list = $('warnings');
   list.replaceChildren(...warnings.map((w) => Object.assign(document.createElement('li'), { textContent: w })));
@@ -128,6 +253,7 @@ function handleMessage(event) {
     previewDone();
   } else if (m.type === 'loaded') {
     loaded = true;
+    $('drop').classList.add('loaded');
     const note = m.scaled ? ` Downscaled from ${m.sourceWidth}×${m.sourceHeight} to fit the browser's canvas limit.` : '';
     $('load-status').textContent = `${fileName}: ${m.width}×${m.height} px.${note}`;
     $('render').disabled = false;
@@ -137,15 +263,19 @@ function handleMessage(event) {
     drawFrame(canvases.sheet, m.sheet);
     drawFrame(canvases.panorama, m.panorama);
     drawFrame(canvases.globe, m.globe);
-    $('info').textContent = `Sphere diameter: ${m.diameterMm.toFixed(1)} mm`;
+    showDiameter(m.diameterMm, m.copies);
     showWarnings(m.warnings);
     $('render-error').textContent = '';
     previewDone();
   } else if (m.type === 'done') {
-    finishRender(m);
+    finishRender(m).catch((e) => {
+      setRendering(false);
+      $('render-error').textContent = e.message;
+    });
   } else if (m.type === 'error') {
     if (m.context === 'load') {
       loaded = false;
+      $('drop').classList.remove('loaded');
       $('load-status').textContent = m.message;
       $('render').disabled = true;
     } else if (m.context === 'render') {
@@ -207,11 +337,21 @@ drop.addEventListener('drop', (e) => {
   loadFile(e.dataTransfer.files[0]);
 });
 
-form.addEventListener('input', () => {
+form.addEventListener('input', (e) => {
+  if (e.target.id === 'diameterMode' && e.target.value === 'custom' && !$('diameter').value && lastDiameter) {
+    $('diameter').value = String(Number(lastDiameter.toFixed(1)));
+  }
   syncFormState();
   updateCliText();
+  showStudio3();
   requestPreview();
 });
+for (const button of document.querySelectorAll('[data-marks]')) {
+  button.addEventListener('click', () => {
+    $('marks').value = button.dataset.marks;
+    form.dispatchEvent(new Event('input'));
+  });
+}
 form.addEventListener('submit', (e) => e.preventDefault());
 
 // ---- dragging ------------------------------------------------------------------------------
@@ -335,7 +475,7 @@ $('copy-cli').addEventListener('click', async () => {
 function setRendering(on) {
   rendering = on;
   $('render').disabled = on || !loaded;
-  $('render').textContent = on ? 'Rendering…' : 'Render & download';
+  $('render').textContent = on ? 'Rendering…' : 'Download sheet';
 }
 
 $('render').addEventListener('click', () => {
@@ -352,6 +492,24 @@ $('render').addEventListener('click', () => {
 
 let downloadUrls = [];
 
+/** { url, name } of the chosen preset's .studio3 when ".studio3 (Silhouette)" is chosen and the file exists, else null. */
+async function studio3Choice() {
+  const mode = $('diameterMode').value;
+  if ($('cutFile').value !== 'studio3' || !isPresetMode(mode) || $('copies').value !== 'max') return null;
+  const path = studio3Path('letter', Number(mode.slice('preset-'.length)));
+  if (!(await hasStudio3(path))) return null;
+  return { url: new URL(`../${path}`, import.meta.url).href, name: path.split('/').pop() };
+}
+
+/** Start the download of a static file (like download() does for a blob) and return a link to it. */
+function downloadUrl(url, name) {
+  const a = Object.assign(document.createElement('a'), { href: url, download: name, textContent: name });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  return Object.assign(document.createElement('a'), { href: url, download: name, textContent: name });
+}
+
 function download(blob, name) {
   const url = URL.createObjectURL(blob);
   downloadUrls.push(url);
@@ -362,16 +520,21 @@ function download(blob, name) {
   return Object.assign(document.createElement('a'), { href: url, download: name, textContent: name });
 }
 
-function finishRender({ blob, cutFile, diameterMm, warnings }) {
+const FORMATS = new Set(['pdf', 'png', 'jpg']);
+
+async function finishRender({ blob, format, cutFile, diameterMm, copies, warnings }) {
   setRendering(false);
   const base = fileName.replace(/\.[^./\\]+$/, '') || 'panorama';
-  const links = [download(blob, `${base}-sheet.${blob.type === 'image/png' ? 'png' : 'jpg'}`)];
+  if (!FORMATS.has(format)) throw new Error(`Unexpected sheet format ${format || '(none)'}`);
+  const links = [download(blob, `${base}-sheet.${format}`)];
+  const studio3 = await studio3Choice();
   if (cutFile) {
     const type = cutFile.type === 'svg' ? 'image/svg+xml' : 'application/dxf';
     links.push(download(new Blob([cutFile.content], { type }), `${base}-sheet.${cutFile.type}`));
   }
-  $('info').textContent = `Sphere diameter: ${diameterMm.toFixed(1)} mm. Downloaded:`;
-  $('downloads').replaceChildren(...links.flatMap((a, i) => (i ? [' · ', a] : [a])));
+  if (studio3) links.push(downloadUrl(studio3.url, studio3.name));
+  showDiameter(diameterMm, copies);
+  $('downloads').replaceChildren('Downloaded: ', ...links.flatMap((a, i) => (i ? [' · ', a] : [a])));
   showWarnings(warnings);
 }
 

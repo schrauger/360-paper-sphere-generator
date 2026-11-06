@@ -6,3 +6,6 @@ node_modules/
 test-output/
 .DS_Store
 __pycache__/
+
+# Design mock-ups: kept local, not published with the repo.
+/prototypes/
