@@ -20,6 +20,11 @@ function rng(seed) {
   };
 }
 
+const unit = (v) => {
+  const l = Math.hypot(v[0], v[1], v[2]);
+  return v.map((x) => x / l);
+};
+
 function randomUnit(next) {
   for (;;) {
     const v = [next() * 2 - 1, next() * 2 - 1, next() * 2 - 1];
@@ -47,9 +52,33 @@ test('rotationBetween maps a to b for 1000 random pairs, including antipodal one
   }
 });
 
+test('rotationBetween stays accurate just off antipodal (eps from 1e-12 to 1e-6)', () => {
+  const next = rng(7);
+  for (const eps of [1e-12, 1e-10, 1e-8, 1e-6]) {
+    for (let i = 0; i < 2000; i++) {
+      const a = randomUnit(next);
+      const r = randomUnit(next);
+      // b = -a + eps * r, renormalised, so |a x b| is about eps.
+      const b = unit(a.map((x, j) => -x + eps * r[j]));
+      const R = rotationBetween(a, b);
+      nearVec(apply(R, a), b, 1e-12, `eps ${eps} case ${i}`);
+      assert.ok(isRotation(R, 1e-12), `eps ${eps} case ${i} is a proper rotation`);
+    }
+  }
+});
+
 test('rotationBetween of identical vectors is the identity', () => {
   const a = [0.6, 0.0, 0.8];
   assert.ok(maxDiff(rotationBetween(a, a), I) <= 1e-12);
+});
+
+test('zero or non-finite input vectors throw RangeError', () => {
+  const bad = [[0, 0, 0], [NaN, 0, 0], [Infinity, 0, 0]];
+  for (const v of bad) {
+    assert.throws(() => rotationBetween(v, [1, 0, 0]), RangeError);
+    assert.throws(() => rotationBetween([1, 0, 0], v), RangeError);
+    assert.throws(() => rollPhoto(I, v, 10), RangeError);
+  }
 });
 
 test('dragPhoto: apply(new, pTo) equals apply(old, pFrom) within 1e-12', () => {

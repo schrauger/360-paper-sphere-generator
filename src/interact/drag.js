@@ -4,9 +4,16 @@
 import { mul, orthonormalize, rotationFromYPR, transpose, yprFromRotation } from '../sphere/orient.js';
 
 const TINY = 1e-12;
+// Below this dot product the direct formula loses accuracy (sin of the angle
+// shrinks as a and b approach antipodal), so rotationBetween goes through a
+// perpendicular instead.
+const ANTIPODAL_DOT = -0.5;
 
 function unit(v) {
   const l = Math.hypot(v[0], v[1], v[2]);
+  if (!(l > 0) || !Number.isFinite(l)) {
+    throw new RangeError(`expected a non-zero finite vector, got [${v}]`);
+  }
   return [v[0] / l, v[1] / l, v[2] / l];
 }
 
@@ -36,17 +43,22 @@ function perpendicular(u) {
   return unit(cross(u, e));
 }
 
-// Minimal rotation taking unit a to unit b (Rodrigues). For a ~ -b the axis is
-// ambiguous, so a pi rotation about a perpendicular axis is used.
-export function rotationBetween(a, b) {
-  const u = unit(a), v = unit(b);
+// Direct Rodrigues for unit u, v with dot(u, v) > ANTIPODAL_DOT (or any pair with
+// |u x v| not tiny). The identity return is only reached for u ~ v.
+function directRotation(u, v) {
   const k = cross(u, v);
   const s = Math.hypot(k[0], k[1], k[2]);
-  const c = dot(u, v);
-  if (s < TINY) {
-    return c > 0 ? Float64Array.from([1, 0, 0, 0, 1, 0, 0, 0, 1]) : rotationAbout(perpendicular(u), Math.PI);
-  }
-  return rotationAbout(k.map((x) => x / s), Math.atan2(s, c));
+  if (s < TINY) return Float64Array.from([1, 0, 0, 0, 1, 0, 0, 0, 1]);
+  return rotationAbout(k.map((x) => x / s), Math.atan2(s, dot(u, v)));
+}
+
+// Minimal rotation taking a to b (Rodrigues). Near-antipodal pairs are split
+// into two rotations through a perpendicular w, each with sin(angle) >= 0.5.
+export function rotationBetween(a, b) {
+  const u = unit(a), v = unit(b);
+  if (dot(u, v) > ANTIPODAL_DOT) return directRotation(u, v);
+  const w = perpendicular(u);
+  return mul(directRotation(w, v), directRotation(u, w));
 }
 
 // Keeps the photo content under the cursor: pFrom/pTo are band-frame directions
