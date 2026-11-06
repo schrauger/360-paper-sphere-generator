@@ -51,7 +51,9 @@ test('drawMarks: L legs 0.54 mm thick and 13.65 mm long', () => {
   assert.ok(black(Math.round(bl.x + leg - 3), Math.round(bl.y - stroke / 2)));
   assert.ok(!black(Math.round(bl.x + leg + 3), Math.round(bl.y - stroke / 2)));
   // total black area of the L: two legs overlapping in one stroke² corner
-  // (coverage-weighted: edge pixels are antialiased)
+  // Coverage-weighted: edge pixels are antialiased, so counting only fully black pixels would
+  // undercount by ~20%. Summed coverage is exact up to the two leg ends; 60 px is ~3% of the
+  // expected ~2016 px area.
   let area = 0;
   for (let y = Math.floor(bl.y - leg) - 3; y < Math.ceil(bl.y) + 3; y++) {
     for (let x = Math.floor(bl.x) - 3; x < Math.ceil(bl.x + leg) + 3; x++) area += (255 - img.data[(y * img.width + x) * 4]) / 255;

@@ -7,7 +7,7 @@ const MM_PER_IN = 25.4;
 const MAX_SHEET_PX = 2.5e8;
 const CLEARANCE_MM = 3; // pieces keep this far from every registration mark
 // Silhouette Studio's Type 1 registration marks at a 10 mm inset, measured from a Studio print
-// (±0.05 mm). mm; the square sits top-left, the L-corners top-right and bottom-left.
+// (±0.05 mm). All in mm: the square sits top-left, the L-corners top-right and bottom-left.
 const MARK_INSET_MM = 9.75; // each mark's outer edge from its two nearest page edges
 const SQUARE_MM = 5.55;
 const LEG_MM = 13.65;
@@ -101,6 +101,7 @@ export function layoutSheet(model, outline, { preset, page, dpi = 300, diameterM
     if (!fits(pxPerR, rect, markBoxesMm(widthMm, heightMm))) {
       // Grow the sheet to the arrangement plus margins; with marks, the arrangement clears the
       // marks' legs and the clearance on every side (the legs reach MARK_INSET + LEG from the edge).
+      // (A bounding-box bound: the real arrangement is not rectangular, so this may be generous.)
       const pad = silhouette ? MARK_INSET_MM + LEG_MM + CLEARANCE_MM : marginMm;
       const newW = (pxPerR * bw) / pxPerMm + 2 * pad;
       const newH = (pxPerR * bh) / pxPerMm + 2 * pad;

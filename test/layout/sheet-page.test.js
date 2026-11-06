@@ -117,6 +117,9 @@ test('diameterMm 400 on letter → warning "does not fit" and an enlarged sheet'
 test('letter with marks fills the page symmetrically; marginMm is ignored with marks', () => {
   for (const page of [LETTER, A3, { widthMm: 210, heightMm: 297 }]) {
     const l = layoutSheet(MODEL_360CRAFT, outline, { page, marks: 'silhouette', marginMm: 40 });
+    const d = layoutSheet(MODEL_360CRAFT, outline, { page, marks: 'silhouette' });
+    assert.equal(l.pxPerR, d.pxPerR);
+    assert.deepEqual(l.pieces, d.pieces);
     const pts = cutPoints(l);
     const px = (v) => (v / 25.4) * 300;
     const gaps = [
