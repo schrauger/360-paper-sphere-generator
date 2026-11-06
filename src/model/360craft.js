@@ -42,7 +42,20 @@ export const MODEL_360CRAFT = {
       neg: [[0, -0.0009, 0.3049], [1, 0.0001, 0.3047], [1, 0.1502, 0.1545]],
     },
   },
-  // style: added by T10
+  // Print style. tools/research/measure-style.py on alaska, site-high-bleed and site-low-outline
+  // (ADR-0003, Style). tabColor: median of the tab interiors, 192 grey in all three references.
+  // outlineWidth: 3.00 px at original-low (dark-run width across the cut path, median of 5464
+  // samples) / 492.429 px per R. bleed: 360craft prints the content 28.0 / 27.0 original-high px
+  // (site-high-bleed / alaska) past the seam = 13.75 original-low px = 0.02792 R in the flat; as
+  // a SPHERE distance (the renderer's bleedR, ruling R25/R27) that is divided by the edge stretch
+  // sec²d = 1.0690 → 0.02612 R (under warp.js's MAX_BLEED_R = 0.03).
+  style: {
+    bleed: 0.02612,
+    outlineWidth: 0.0061,
+    tabColor: [192, 192, 192],
+    outlineColor: [0, 0, 0],
+    background: [255, 255, 255],
+  },
 };
 
 /**

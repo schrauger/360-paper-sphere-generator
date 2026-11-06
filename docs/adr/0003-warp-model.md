@@ -203,4 +203,36 @@ reach 0.075 R. Each outer vertex is placed from the flat seam polyline and its o
 
 ## Style
 
-(T10 appends.)
+`tools/research/measure-style.py` (after `dump-style-geometry.mjs`) measures three print constants on
+`alaska`, `site-high-bleed` and `site-low-outline`, against the model's seams, tabs and cut path:
+
+| constant | measurement | value |
+|---|---|---|
+| tab grey | median RGB of tab pixels ≥ 3 px from the seam and the cut path, all three references | 192, 192, 192 (identical in each) |
+| outline width | dark-run width across the cut path, half-contrast crossings, median of 5464 profiles (low res) | 3.00 px = 0.0061 R |
+| bleed | distance from the seam to where content gives way to tab grey: 28.0 px (site-high-bleed), 27.0 px (alaska), original-high; 778 samples each | 13.75 px at original-low = 0.02792 R in the flat |
+
+The renderer's `bleedR` is a sphere distance (R25), and the flat bleed is `bleedR · sec²d` wider at the
+edge, with sec²d = 1.0690 (median of the strip records on the seams away from the tips). So
+`style.bleed` = 0.02792 / 1.0690 = 0.02612 R, inside warp.js's `MAX_BLEED_R` of 0.03. Outline colour is
+black and the background white. The sheet is drawn background, tabs, pieces (the bleed over the
+tabs), outline.
+
+**Image regression** (`test/regression/image.test.js`, original-high, interior = piece alpha 1 eroded
+6 px, bleed included; the flat tab colour is left to the style tests, since 2018-09-b prints its tabs
+white). Style-only fixtures pass: tab grey exact, outline width 3.00 vs 3.00 px, bleed 28.25 vs 28.00 px.
+Fixtures against the half-pixel tolerances of T2:
+
+| fixture | MAE | limit | MAE within 1.3 R of a tip | elsewhere | mask agreement |
+|---|---|---|---|---|---|
+| alaska | 5.12 | 3.55 | 7.20 | 2.94 | 99.75% |
+| 2018-09-a | 2.65 | 1.51 | 3.13 | 2.14 | 99.78% |
+| 2018-09-b | 2.38 | 1.34 | 2.65 | 2.10 | 99.47% |
+
+The error is not limited to the tip curls: the body is at ≈ 2 px colour error too (median 1, p90 5–7),
+and a global shift of the reference by up to 1.5 px does not reduce it (best shift 0.5 px: 5.12 → 4.95),
+so there is no convention offset. This is the accepted fit accuracy seen at original-high: 0.3–0.55 px
+at low res is 0.6–1.1 px here, a misregistration of about the size that defines the half-pixel
+tolerance. The tip curls, where the seam is up to 2–3 px off (R19), are worse. The thresholds are kept
+and the three tests are `todo` until a ruling; the mask agreement misses only on 2018-09-b, by 0.03%
+(thin disagreement along the outline).
