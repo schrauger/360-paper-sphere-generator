@@ -6,6 +6,7 @@ export const PAGE_SIZES = { letter: [215.9, 279.4], a4: [210, 297], a3: [297, 42
 const PRESETS = ['original-low', 'original-high'];
 const MARKS = ['none', 'silhouette'];
 const CUT_FILES = ['svg', 'dxf'];
+const FORMATS = ['pdf', 'png', 'jpg'];
 
 /** Thrown for a bad option value; the message names the option (as the CLI flag). */
 export class OptionError extends Error {
@@ -54,7 +55,8 @@ function parseBleed(bleed) {
  * RenderOptions from raw (CLI or web) input; every field is optional.
  * raw: { preset, page ('letter' | 'a4' | … | '<W>x<H>mm' | {widthMm, heightMm}), dpi, diameterMm,
  * marginMm, outline, bleed (mm | 'auto' | 'off'), marks ('none' | 'silhouette'),
- * orientation {yaw, pitch, roll} (degrees), format ('png' | 'jpg'), jpegQuality, cutFile ('svg' | 'dxf') }.
+ * orientation {yaw, pitch, roll} (degrees), format ('pdf' | 'png' | 'jpg', default 'pdf'), jpegQuality,
+ * cutFile ('svg' | 'dxf') }.
  * A preset fixes the sheet at 360craft's size: page, diameterMm, marginMm and marks are then
  * ignored (and dpi only sets the metadata density and the mm ↔ px scale of bleed and the cut file).
  */
@@ -84,7 +86,7 @@ export function normalizeOptions(raw = {}) {
     bleedMm: given(raw.bleed) ? parseBleed(raw.bleed) : 0,
     marks: given(raw.marks) ? oneOf(raw.marks, MARKS, '--marks') : 'none',
     orientation,
-    format: given(raw.format) ? oneOf(raw.format, ['png', 'jpg'], '--format') : 'png',
+    format: given(raw.format) ? oneOf(raw.format, FORMATS, '--format') : 'pdf',
     jpegQuality,
     cutFile: given(raw.cutFile) ? oneOf(raw.cutFile, CUT_FILES, '--cut-file') : null,
   };

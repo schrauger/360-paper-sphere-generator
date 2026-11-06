@@ -13,7 +13,7 @@ test('defaults', () => {
     bleedMm: 0,
     marks: 'none',
     orientation: { yaw: 0, pitch: 0, roll: 0 },
-    format: 'png',
+    format: 'pdf',
     jpegQuality: 92,
     cutFile: null,
   });
@@ -46,9 +46,14 @@ test('bad values throw OptionError naming the option', () => {
   rejects({ bleed: NaN }, '--bleed');
   rejects({ marks: 'cricut' }, '--marks');
   rejects({ cutFile: 'pdf' }, '--cut-file');
+  rejects({ format: 'gif' }, '--format');
   rejects({ jpegQuality: 0 }, '--quality');
   rejects({ orientation: { yaw: NaN } }, '--yaw');
   rejects({ orientation: { pitch: 'up' } }, '--pitch');
+});
+
+test('format is pdf, png or jpg', () => {
+  for (const format of ['pdf', 'png', 'jpg']) assert.equal(normalizeOptions({ format }).format, format);
 });
 
 test('marginMm must be finite and ≥ 0', () => {

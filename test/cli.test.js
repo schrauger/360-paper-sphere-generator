@@ -34,6 +34,16 @@ test('--page letter --dpi 72 → 612×792 PNG with density 72', async () => {
   assert.deepEqual([m.width, m.height, m.density], [612, 792, 72]);
 });
 
+test('-o x.pdf writes a PDF page of the sheet size (letter at 300 dpi)', async () => {
+  const input = await makeInput('p.png', 64, 32);
+  const out = join(dir, 'p-out.pdf');
+  const r = run(input, '-o', out);
+  assert.equal(r.status, 0, r.stderr);
+  const pdf = readFileSync(out, 'latin1');
+  assert.ok(pdf.startsWith('%PDF-1.4'));
+  assert.match(pdf, /\/MediaBox \[0 0 612 792\]/);
+});
+
 test('--preset original-low → 2850×4160', async () => {
   const input = await makeInput('b.png', 512, 256);
   const out = join(dir, 'b-out.png');

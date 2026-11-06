@@ -2,11 +2,13 @@
 // paper-sphere: turn an equirectangular panorama into a printable paper-sphere sheet.
 import { parseArgs } from 'node:util';
 import { writeFile } from 'node:fs/promises';
+import { deflateSync } from 'node:zlib';
 import sharp from 'sharp';
 import { OptionError, checkAspect, normalizeOptions } from './src/options.js';
 import { renderSheet } from './src/pipeline.js';
+import { rgbFromRgba, sheetPdf } from './src/export/pdf.js';
 
-const USAGE = `Usage: paper-sphere <input> -o <out.png|out.jpg> [options]
+const USAGE = `Usage: paper-sphere <input> -o <out.pdf|out.png|out.jpg> [options]
   --preset original-low|original-high   360craft's own sheet sizes (ignores --page, --diameter, --marks)
   --page letter|a4|a3|tabloid|<W>x<H>mm   page size (default letter)
   --dpi N                               72–1200 (default 300)
@@ -18,6 +20,8 @@ const USAGE = `Usage: paper-sphere <input> -o <out.png|out.jpg> [options]
   --yaw D --pitch D --roll D            panorama orientation in degrees
   --cut-file svg|dxf                    also write <out>.svg / <out>.dxf
   --quality Q                           JPEG quality 1–100 (default 92)`;
+
+const FORMAT_OF_EXTENSION = new Map([['pdf', 'pdf'], ['png', 'png'], ['jpg', 'jpg'], ['jpeg', 'jpg']]);
 
 const OPTIONS = {
   output: { type: 'string', short: 'o' },
@@ -70,8 +74,8 @@ async function main() {
   const [input] = positionals;
   if (!input || positionals.length > 1 || !values.output) fail(USAGE);
   const out = values.output;
-  const ext = /\.([^./\\]+)$/.exec(out)?.[1].toLowerCase();
-  if (!['png', 'jpg', 'jpeg'].includes(ext)) fail('Output must be a .png, .jpg or .jpeg file (-o)');
+  const format = FORMAT_OF_EXTENSION.get(/\.([^./\\]+)$/.exec(out)?.[1].toLowerCase());
+  if (!format) fail('Output must be a .pdf, .png, .jpg or .jpeg file (-o)');
   const options = normalizeOptions({
     preset: values.preset,
     page: values.page,
@@ -82,7 +86,7 @@ async function main() {
     bleed: values.bleed,
     marks: values.marks,
     orientation: { yaw: values.yaw, pitch: values.pitch, roll: values.roll },
-    format: ext === 'png' ? 'png' : 'jpg',
+    format,
     jpegQuality: values.quality,
     cutFile: values['cut-file'],
   });
@@ -99,10 +103,15 @@ async function main() {
   const pano = { width: info.width, height: info.height, data: new Uint8ClampedArray(data.buffer, data.byteOffset, data.length) };
 
   const { image, warnings, diameterMm, cutFile } = renderSheet(pano, options);
-  const sheet = sharp(Buffer.from(image.data.buffer, image.data.byteOffset, image.data.length), {
-    raw: { width: image.width, height: image.height, channels: 4 },
-  }).removeAlpha().withMetadata({ density: options.dpi });
-  await (options.format === 'png' ? sheet.png() : sheet.jpeg({ quality: options.jpegQuality })).toFile(out);
+  if (format === 'pdf') {
+    const rgbDeflated = deflateSync(rgbFromRgba(image.data));
+    await writeFile(out, sheetPdf({ widthPx: image.width, heightPx: image.height, dpi: options.dpi, rgbDeflated }));
+  } else {
+    const sheet = sharp(Buffer.from(image.data.buffer, image.data.byteOffset, image.data.length), {
+      raw: { width: image.width, height: image.height, channels: 4 },
+    }).removeAlpha().withMetadata({ density: options.dpi });
+    await (format === 'png' ? sheet.png() : sheet.jpeg({ quality: options.jpegQuality })).toFile(out);
+  }
   if (cutFile) await writeFile(out.replace(/\.[^./\\]+$/, `.${cutFile.type}`), cutFile.content);
   console.error(`Sphere diameter: ${diameterMm.toFixed(1)} mm`);
   for (const w of warnings) console.error(w);

@@ -22,18 +22,22 @@ defunct 360craft site (see [Credits](#credits)).
 *Panorama: photo by Bob Dass on PxHere (#461435); free for personal and commercial use, attribution
 required. [Source](https://pxhere.com/en/photo/461435).*
 
-Output is a PNG or JPEG sheet, optionally with the cut outline as SVG or DXF for a cutting machine.
+Output is a PDF (the default), PNG or JPEG sheet, optionally with the cut outline as SVG or DXF for a
+cutting machine. The PDF is the default download and prints at 100% (actual size), which is what makes
+the printed marks line up with the cutter.
 
 ## Web app
 
 Use it in the browser, with no install: **https://sphere.schrauger.com/**. The panorama stays on your
-machine. To run it locally, `npm run serve` and open http://localhost:8080/web/.
+machine. To run it locally, `npm run serve` and open http://localhost:8080/web/. The sheet downloads as a
+PDF by default; print it at 100% (actual size, no "fit to page") so the marks line up with the cutter.
 
 ## CLI quick start
 
 ```sh
 npm install
-node cli.js panorama.jpg -o sheet.png                         # letter page, 300 dpi
+node cli.js panorama.jpg -o sheet.pdf                         # letter page, 300 dpi, prints at 100%
+node cli.js panorama.jpg -o sheet.png
 node cli.js panorama.jpg -o sheet.png --page a4 --bleed auto --marks silhouette
 node cli.js panorama.jpg -o sheet.jpg --yaw 30 --cut-file svg # also writes sheet.svg
 ```
@@ -43,7 +47,7 @@ anything else is an error.
 
 | Option | Meaning |
 |---|---|
-| `-o <file>` | Output, `.png`, `.jpg` or `.jpeg` (required). |
+| `-o <file>` | Output, `.pdf` (prints at 100%), `.png`, `.jpg` or `.jpeg` (required). |
 | `--preset original-low\|original-high` | 360craft's own sheet sizes (2850×4160 and 5700×8320 px). Ignores `--page`, `--diameter` and `--marks`. |
 | `--page letter\|a4\|a3\|tabloid\|<W>x<H>mm` | Page size (default `letter`). |
 | `--dpi N` | 72–1200 (default 300). |

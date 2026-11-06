@@ -365,7 +365,8 @@ function download(blob, name) {
 function finishRender({ blob, cutFile, diameterMm, warnings }) {
   setRendering(false);
   const base = fileName.replace(/\.[^./\\]+$/, '') || 'panorama';
-  const links = [download(blob, `${base}-sheet.${blob.type === 'image/png' ? 'png' : 'jpg'}`)];
+  const extension = { 'application/pdf': 'pdf', 'image/png': 'png', 'image/jpeg': 'jpg' }[blob.type];
+  const links = [download(blob, `${base}-sheet.${extension}`)];
   if (cutFile) {
     const type = cutFile.type === 'svg' ? 'image/svg+xml' : 'application/dxf';
     links.push(download(new Blob([cutFile.content], { type }), `${base}-sheet.${cutFile.type}`));

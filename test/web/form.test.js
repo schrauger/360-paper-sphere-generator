@@ -49,15 +49,16 @@ function parseCommand(cmd) {
     else if (['--yaw', '--pitch', '--roll'].includes(flag)) raw.orientation[flag.slice(2)] = next();
     else raw[flag.slice(2)] = next();
   }
-  raw.format = out.endsWith('.png') ? 'png' : 'jpg';
+  raw.format = /\.(\w+)$/.exec(out)[1];
   return normalizeOptions(raw);
 }
 
 test('cliCommandFor omits defaults and round-trips through normalizeOptions', () => {
-  assert.equal(cliCommandFor(normalizeOptions({}), 'photo.jpg'), 'paper-sphere photo.jpg -o sheet.png');
+  assert.equal(cliCommandFor(normalizeOptions({}), 'photo.jpg'), 'paper-sphere photo.jpg -o sheet.pdf');
+  assert.equal(cliCommandFor(normalizeOptions({ format: 'png' }), 'photo.jpg'), 'paper-sphere photo.jpg -o sheet.png');
   assert.equal(
     cliCommandFor(normalizeOptions({ outline: false, bleed: 'auto', orientation: { yaw: 42 } }), 'photo.jpg'),
-    'paper-sphere photo.jpg -o sheet.png --no-outline --bleed auto --yaw 42',
+    'paper-sphere photo.jpg -o sheet.pdf --no-outline --bleed auto --yaw 42',
   );
   const cases = [
     formToOptions(FULL),
@@ -71,10 +72,10 @@ test('cliCommandFor omits defaults and round-trips through normalizeOptions', ()
     if (options.preset) Object.assign(back, { page: options.page, diameterMm: options.diameterMm, marginMm: options.marginMm, marks: options.marks });
     assert.deepEqual(back, options, cmd);
   }
-  assert.match(cliCommandFor(normalizeOptions({ preset: 'original-low', page: 'a3' }), 'a.png'), /^paper-sphere a\.png -o sheet\.png --preset original-low$/);
+  assert.match(cliCommandFor(normalizeOptions({ preset: 'original-low', page: 'a3' }), 'a.png'), /^paper-sphere a\.png -o sheet\.pdf --preset original-low$/);
 });
 
 test('cliCommandFor quotes awkward input names and writes negative numbers as separate tokens', () => {
   const cmd = cliCommandFor(normalizeOptions({ orientation: { yaw: -42, pitch: -20 } }), "my pano's.jpg");
-  assert.equal(cmd, "paper-sphere 'my pano'\\''s.jpg' -o sheet.png --yaw -42 --pitch -20");
+  assert.equal(cmd, "paper-sphere 'my pano'\\''s.jpg' -o sheet.pdf --yaw -42 --pitch -20");
 });
