@@ -29,10 +29,10 @@ test('drawMarks: square pixels black', () => {
   assert.ok(!black(Math.floor(sq.x) - 2, y) && !black(x, Math.floor(sq.y + sq.size) + 2));
 });
 
-test('drawMarks: L legs 0.5 mm thick and 10 mm long', () => {
+test('drawMarks: L legs 0.54 mm thick and 13.65 mm long', () => {
   const [, tr, bl] = layout.marks;
-  const stroke = mm(0.5);
-  const leg = mm(10);
+  const stroke = mm(0.54);
+  const leg = mm(13.65);
   // TR ┐: horizontal leg along y = tr.y going left, vertical leg along x = tr.x going down
   const mx = Math.round(tr.x - leg / 2);
   const my = Math.round(tr.y + leg / 2);
@@ -51,8 +51,12 @@ test('drawMarks: L legs 0.5 mm thick and 10 mm long', () => {
   assert.ok(black(Math.round(bl.x + leg - 3), Math.round(bl.y - stroke / 2)));
   assert.ok(!black(Math.round(bl.x + leg + 3), Math.round(bl.y - stroke / 2)));
   // total black area of the L: two legs overlapping in one stroke² corner
-  const area = count(Math.floor(bl.x) - 3, Math.floor(bl.y - leg) - 3, Math.ceil(bl.x + leg) + 3, Math.ceil(bl.y) + 3);
-  assert.ok(Math.abs(area - (2 * leg * stroke - stroke * stroke)) < 40, `${area}`);
+  // (coverage-weighted: edge pixels are antialiased)
+  let area = 0;
+  for (let y = Math.floor(bl.y - leg) - 3; y < Math.ceil(bl.y) + 3; y++) {
+    for (let x = Math.floor(bl.x) - 3; x < Math.ceil(bl.x + leg) + 3; x++) area += (255 - img.data[(y * img.width + x) * 4]) / 255;
+  }
+  assert.ok(Math.abs(area - (2 * leg * stroke - stroke * stroke)) < 60, `${area}`);
 });
 
 test('R28: guide throws RangeError for more than 8 pieces', () => {

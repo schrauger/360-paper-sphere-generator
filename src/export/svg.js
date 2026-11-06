@@ -1,4 +1,5 @@
-// SVG cut file: mm units, y down.
+// SVG cut file: mm units, y down. Cut paths are red and the registration marks black, so a
+// Silhouette Studio user can cut by line colour and skip the marks.
 import { markOutlines } from '../render/marks.js';
 import { layoutInMm } from './pieces.js';
 
@@ -10,7 +11,7 @@ export function cutPathSvg(layout, outline, { includeMarks = false } = {}) {
   const out = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${f4(widthMm)}mm" height="${f4(heightMm)}mm" viewBox="0 0 ${f4(widthMm)} ${f4(heightMm)}">`,
     '<g id="cut">',
-    ...cuts.map((p) => `<path d="${d(p)}" fill="none" stroke="#000" stroke-width="0.1"/>`),
+    ...cuts.map((p) => `<path d="${d(p)}" fill="none" stroke="#ff0000" stroke-width="0.1"/>`),
     '</g>',
   ];
   if (includeMarks) {

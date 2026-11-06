@@ -6,14 +6,13 @@ const PRESETS = { 'original-low': 1, 'original-high': 2 }; // × the original-lo
 const MM_PER_IN = 25.4;
 const MAX_SHEET_PX = 2.5e8;
 const CLEARANCE_MM = 3; // pieces keep this far from every registration mark
-// Silhouette registration marks, mm from the page edges (the square and the L-corners).
-const SQUARE_MM = 5.5;
-const LEG_MM = 10;
-const STROKE_MM = 0.5;
-const LEFT_MM = 9.74;
-const TOP_MM = 9.74;
-const RIGHT_MM = 22.44;
-const BOTTOM_MM = 35.14;
+// Silhouette Studio's Type 1 registration marks at a 10 mm inset, measured from a Studio print
+// (±0.05 mm). mm; the square sits top-left, the L-corners top-right and bottom-left.
+const MARK_INSET_MM = 9.75; // each mark's outer edge from its two nearest page edges
+const SQUARE_MM = 5.55;
+const LEG_MM = 13.65;
+const STROKE_MM = 0.54;
+const MARK_MARGIN_MM = 10; // with marks the content rectangle is the page inset by this
 
 const round1 = (v) => Number(v.toFixed(1));
 
@@ -24,7 +23,8 @@ const round1 = (v) => Number(v.toFixed(1));
  * DPI range are then ignored (dpi only sets the mm ↔ px scale). With a page, the two pieces keep
  * their layoutLow placement, scaled to the largest size that fits the page (or to `diameterMm`;
  * the sheet is then enlarged, with a warning, if the sphere does not fit) and centred.
- * marks: 'none' | 'silhouette' (entries in px, x/y = the mark's outer corner).
+ * marks: 'none' | 'silhouette' (entries in px, x/y = the mark's outer corner). With marks the
+ * margin is 10 mm on every side automatically and `marginMm` is ignored.
  */
 export function layoutSheet(model, outline, { preset, page, dpi = 300, diameterMm = null, marginMm = 6.35, marks = 'none' } = {}) {
   if (preset !== undefined || !page) return presetLayout(model, preset, dpi);
@@ -35,14 +35,13 @@ export function layoutSheet(model, outline, { preset, page, dpi = 300, diameterM
   checkSheetSize(page.widthMm * pxPerMm, page.heightMm * pxPerMm);
 
   const silhouette = marks === 'silhouette';
-  const rectMm = (w, h) => (silhouette
-    ? { x0: LEFT_MM, y0: TOP_MM, x1: w - RIGHT_MM, y1: h - BOTTOM_MM }
-    : { x0: marginMm, y0: marginMm, x1: w - marginMm, y1: h - marginMm });
+  const margin = silhouette ? MARK_MARGIN_MM : marginMm;
+  const rectMm = (w, h) => ({ x0: margin, y0: margin, x1: w - margin, y1: h - margin });
   const markBoxesMm = (w, h) => (silhouette
     ? [
-        [LEFT_MM, TOP_MM, LEFT_MM + SQUARE_MM, TOP_MM + SQUARE_MM],
-        [w - RIGHT_MM - LEG_MM, TOP_MM, w - RIGHT_MM, TOP_MM + LEG_MM],
-        [LEFT_MM, h - BOTTOM_MM - LEG_MM, LEFT_MM + LEG_MM, h - BOTTOM_MM],
+        [MARK_INSET_MM, MARK_INSET_MM, MARK_INSET_MM + SQUARE_MM, MARK_INSET_MM + SQUARE_MM],
+        [w - MARK_INSET_MM - LEG_MM, MARK_INSET_MM, w - MARK_INSET_MM, MARK_INSET_MM + LEG_MM],
+        [MARK_INSET_MM, h - MARK_INSET_MM - LEG_MM, MARK_INSET_MM + LEG_MM, h - MARK_INSET_MM],
       ]
     : []);
 
@@ -100,11 +99,11 @@ export function layoutSheet(model, outline, { preset, page, dpi = 300, diameterM
     if (!(diameterMm > 0) || !Number.isFinite(diameterMm)) throw new RangeError('Sphere diameter must be a positive number of mm');
     pxPerR = ((diameterMm / 2) / MM_PER_IN) * dpi;
     if (!fits(pxPerR, rect, markBoxesMm(widthMm, heightMm))) {
-      // Grow the sheet to the arrangement plus margins; with marks, also the room the marks
-      // need (their legs and the clearance) so nothing lands under a mark.
-      const pad = silhouette ? CLEARANCE_MM + LEG_MM : marginMm;
-      const newW = (pxPerR * bw) / pxPerMm + 2 * pad + (silhouette ? LEFT_MM + RIGHT_MM : 0);
-      const newH = (pxPerR * bh) / pxPerMm + 2 * pad + (silhouette ? TOP_MM + BOTTOM_MM : 0);
+      // Grow the sheet to the arrangement plus margins; with marks, the arrangement clears the
+      // marks' legs and the clearance on every side (the legs reach MARK_INSET + LEG from the edge).
+      const pad = silhouette ? MARK_INSET_MM + LEG_MM + CLEARANCE_MM : marginMm;
+      const newW = (pxPerR * bw) / pxPerMm + 2 * pad;
+      const newH = (pxPerR * bh) / pxPerMm + 2 * pad;
       warnings.push(`Sphere of ${round1(diameterMm)} mm does not fit on ${round1(widthMm)}×${round1(heightMm)} mm; sheet enlarged to ${round1(newW)}×${round1(newH)} mm`);
       widthMm = newW;
       heightMm = newH;
@@ -119,9 +118,9 @@ export function layoutSheet(model, outline, { preset, page, dpi = 300, diameterM
   const markEntries = [];
   if (silhouette) {
     markEntries.push(
-      { type: 'square', x: toPx(LEFT_MM), y: toPx(TOP_MM), size: toPx(SQUARE_MM) },
-      { type: 'corner', corner: 'top-right', x: toPx(widthMm - RIGHT_MM), y: toPx(TOP_MM), leg: toPx(LEG_MM), stroke: toPx(STROKE_MM) },
-      { type: 'corner', corner: 'bottom-left', x: toPx(LEFT_MM), y: toPx(heightMm - BOTTOM_MM), leg: toPx(LEG_MM), stroke: toPx(STROKE_MM) },
+      { type: 'square', x: toPx(MARK_INSET_MM), y: toPx(MARK_INSET_MM), size: toPx(SQUARE_MM) },
+      { type: 'corner', corner: 'top-right', x: toPx(widthMm - MARK_INSET_MM), y: toPx(MARK_INSET_MM), leg: toPx(LEG_MM), stroke: toPx(STROKE_MM) },
+      { type: 'corner', corner: 'bottom-left', x: toPx(MARK_INSET_MM), y: toPx(heightMm - MARK_INSET_MM), leg: toPx(LEG_MM), stroke: toPx(STROKE_MM) },
     );
   }
   return {

@@ -52,7 +52,8 @@ test('SVG path vertices equal the layout cut paths in mm within 1e-3', () => {
     assert.equal(p.length, want.length);
     p.forEach(([x, y], j) => assert.ok(Math.hypot(x - want[j][0], y - want[j][1]) < 1e-3));
   });
-  assert.match(group(svg, 'cut'), /fill="none" stroke="#000" stroke-width="0.1"/);
+  assert.match(group(svg, 'cut'), /fill="none" stroke="#ff0000" stroke-width="0.1"/);
+  assert.match(group(svg, 'registration'), /fill="#000" stroke="none"/);
   assert.equal(dsOf(group(svg, 'registration')).length, 3);
 });
 

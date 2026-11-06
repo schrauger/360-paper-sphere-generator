@@ -61,7 +61,7 @@ Panorama content printed a short distance beyond a piece's edge, under the tabs,
 _Avoid_: overprint, overbleed
 
 **Registration marks**:
-The marks a cutting machine's optical sensor uses to line up its cuts with a printed sheet: a solid square top-left and L-shaped corners top-right and bottom-left.
+The marks a cutting machine's optical sensor uses to line up its cuts with a printed sheet: a solid square top-left and L-shaped corners top-right and bottom-left. They match Silhouette Studio's Type 1 marks at a 10 mm inset, and the sheet's margin is 10 mm when they are on.
 _Avoid_: cutting markers, corner markers, crop marks
 
 ## Reference
