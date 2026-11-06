@@ -135,3 +135,19 @@ test('output in a missing directory → exit 1, message only, no stack trace', a
   assert.match(r.stderr, /unable to (open|write)|No such file/);
   assert.doesNotMatch(r.stderr, /\n\s+at /);
 });
+
+test('negative yaw, pitch and roll given as separate tokens render with exit 0', async () => {
+  const input = await makeInput('neg.png', 256, 128);
+  const out = join(dir, 'neg-out.png');
+  const r = run(input, '-o', out, '--dpi', '72', '--yaw', '-42', '--pitch', '-20', '--roll', '-5');
+  assert.equal(r.status, 0, r.stderr);
+  assert.doesNotMatch(r.stderr, /ambiguous/);
+});
+
+test('--margin -1 with a separate token reports the margin range error, not "ambiguous"', async () => {
+  const input = await makeInput('mr.png', 64, 32);
+  const r = run(input, '-o', join(dir, 'mr-out.png'), '--margin', '-1');
+  assert.equal(r.status, 2);
+  assert.doesNotMatch(r.stderr, /ambiguous/);
+  assert.match(r.stderr, /--margin must be ≥ 0 mm \(got -1\)/);
+});

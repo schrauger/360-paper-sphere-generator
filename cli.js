@@ -19,21 +19,39 @@ const USAGE = `Usage: paper-sphere <input> -o <out.png|out.jpg> [options]
   --cut-file svg|dxf                    also write <out>.svg / <out>.dxf
   --quality Q                           JPEG quality 1–100 (default 92)`;
 
+const OPTIONS = {
+  output: { type: 'string', short: 'o' },
+  preset: { type: 'string' }, page: { type: 'string' }, dpi: { type: 'string' }, diameter: { type: 'string' },
+  margin: { type: 'string' },
+  outline: { type: 'boolean' }, 'no-outline': { type: 'boolean' },
+  bleed: { type: 'string' }, marks: { type: 'string' },
+  yaw: { type: 'string' }, pitch: { type: 'string' }, roll: { type: 'string' },
+  'cut-file': { type: 'string' }, quality: { type: 'string' },
+  help: { type: 'boolean', short: 'h' },
+};
+
+// node:util parseArgs reads `--pitch -20` as an ambiguous option, so a negative value would be rejected.
+// Merge `--name` with a following numeric token into `--name=<value>` for every value-taking option.
+function joinNegativeValues(argv) {
+  const out = [];
+  for (let i = 0; i < argv.length; i++) {
+    const token = argv[i];
+    const next = argv[i + 1];
+    const name = /^--([^=]+)$/.exec(token)?.[1];
+    const takesValue = name !== undefined && OPTIONS[name]?.type === 'string';
+    if (takesValue && next !== undefined && next.trim() !== '' && Number.isFinite(Number(next))) {
+      out.push(`${token}=${next}`);
+      i++;
+    } else {
+      out.push(token);
+    }
+  }
+  return out;
+}
+
 const { values, positionals } = (() => {
   try {
-    return parseArgs({
-      allowPositionals: true,
-      options: {
-        output: { type: 'string', short: 'o' },
-        preset: { type: 'string' }, page: { type: 'string' }, dpi: { type: 'string' }, diameter: { type: 'string' },
-        margin: { type: 'string' },
-        outline: { type: 'boolean' }, 'no-outline': { type: 'boolean' },
-        bleed: { type: 'string' }, marks: { type: 'string' },
-        yaw: { type: 'string' }, pitch: { type: 'string' }, roll: { type: 'string' },
-        'cut-file': { type: 'string' }, quality: { type: 'string' },
-        help: { type: 'boolean', short: 'h' },
-      },
-    });
+    return parseArgs({ args: joinNegativeValues(process.argv.slice(2)), allowPositionals: true, options: OPTIONS });
   } catch (e) {
     return fail(e.message);
   }
