@@ -103,3 +103,28 @@ test('DXF REGISTRATION layer has 1 square and 2 L outlines at the T11 positions'
   const none = dxfToPolylines(readDxfLines(cutPathDxf(layout, outline)), { sheetHeight: heightMm });
   assert.ok(!none.has('REGISTRATION'));
 });
+
+test('DXF TABLES section declares the CUT and REGISTRATION LAYER entries (R12 group codes)', () => {
+  const dxf = cutPathDxf(layout, outline, { includeMarks: true });
+  const lines = dxf.split('\n');
+  const start = lines.indexOf('TABLES');
+  const end = lines.indexOf('ENDSEC', start);
+  assert.ok(start > 0 && end > start, 'no TABLES section');
+  // Read the TABLES section as (group code, value) pairs.
+  const pairs = [];
+  for (let i = start + 1; i + 1 < end; i += 2) pairs.push([lines[i].trim(), lines[i + 1].trim()]);
+  const layers = [];
+  pairs.forEach(([code, value], i) => {
+    if (code === '0' && value === 'LAYER') layers.push(Object.fromEntries(pairs.slice(i + 1, i + 5).map(([c, v]) => [c, v])));
+  });
+  const byName = Object.fromEntries(layers.map((l) => [l['2'], l]));
+  assert.deepEqual(Object.keys(byName).sort(), ['CUT', 'REGISTRATION']);
+  for (const name of ['CUT', 'REGISTRATION']) {
+    assert.equal(byName[name]['70'], '0');
+    assert.match(byName[name]['62'], /^-?\d+$/);
+    assert.equal(byName[name]['6'], 'CONTINUOUS');
+  }
+  // Every layer that a LINE uses is declared.
+  const used = new Set(dxfToPolylines(readDxfLines(dxf), { sheetHeight: heightMm }).keys());
+  for (const name of used) assert.ok(byName[name], `${name} not declared in LAYER table`);
+});
