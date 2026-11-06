@@ -41,8 +41,12 @@ One flat S-shaped cut-out: an unrolled band plus its tabs.
 _Avoid_: S, strip, part, half
 
 **Sheet**:
-The printable page carrying both pieces and any registration marks.
+The printable page carrying the pieces of one or more spheres and any registration marks.
 _Avoid_: output, canvas, page image
+
+**Copies**:
+The number of spheres (pairs of pieces) on one sheet. With a chosen diameter the default is as many as fit, laid out on a grid whose neighbouring cut paths stay 3 mm apart (a pair may be turned 90° and nest); the largest-that-fits diameter is always one pair.
+_Avoid_: repeats, duplicates, count
 
 **Tab**:
 A grey flap along a piece's edge that tucks under the other piece during assembly (glued, taped, or held by friction).

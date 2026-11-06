@@ -14,7 +14,7 @@ test('formToOptions maps every form field; checkbox absence = false', () => {
   const o = formToOptions(FULL);
   assert.deepEqual(o, {
     preset: null, page: { widthMm: 210, heightMm: 297 }, dpi: 150, diameterMm: 120, marginMm: 10, outline: true,
-    bleedMm: 1.5, marks: 'silhouette', orientation: { yaw: -42, pitch: 10.5, roll: 3 }, format: 'jpg', jpegQuality: 80, cutFile: 'svg', tieMm: null,
+    bleedMm: 1.5, marks: 'silhouette', orientation: { yaw: -42, pitch: 10.5, roll: 3 }, format: 'jpg', jpegQuality: 80, copies: 'max', cutFile: 'svg', tieMm: null,
   });
   const { outline, ...noOutline } = FULL;
   assert.equal(formToOptions(noOutline).outline, false);
@@ -88,6 +88,7 @@ test('cliCommandFor omits defaults and round-trips through normalizeOptions', ()
     normalizeOptions({ page: 'letter', bleed: 'off', marks: 'none', cutFile: 'dxf' }),
     normalizeOptions({ cutFile: 'svg', ties: true }),
     normalizeOptions({ cutFile: 'svg', ties: 1.25 }),
+    normalizeOptions({ diameterMm: 40, copies: 3 }),
   ];
   for (const options of cases) {
     const cmd = cliCommandFor(options, 'photo.jpg');
@@ -125,4 +126,13 @@ test('ties: checkbox and width map to tieMm, and cliCommandFor writes --ties or 
   assert.equal(cliCommandFor(normalizeOptions({ cutFile: 'svg', ties: true }), 'a.jpg'), 'paper-sphere a.jpg -o sheet.pdf --cut-file svg --ties');
   assert.equal(cliCommandFor(normalizeOptions({ cutFile: 'svg', ties: '1.2' }), 'a.jpg'), 'paper-sphere a.jpg -o sheet.pdf --cut-file svg --tie-width 1.2');
   assert.throws(() => formToOptions({ ties: 'on', tieWidth: '5' }), OptionError);
+});
+
+test('copies: the form value maps to options.copies and the CLI command writes --copies only for a count', () => {
+  assert.equal(formToOptions({ copies: '' }).copies, 'max');
+  assert.equal(formToOptions({ copies: 'max' }).copies, 'max');
+  assert.equal(formToOptions({ copies: '2' }).copies, 2);
+  assert.equal(cliCommandFor(normalizeOptions({ diameterMm: 40, copies: 2 }), 'a.jpg'), 'paper-sphere a.jpg -o sheet.pdf --diameter 40 --copies 2');
+  assert.equal(cliCommandFor(normalizeOptions({ diameterMm: 40 }), 'a.jpg'), 'paper-sphere a.jpg -o sheet.pdf --diameter 40');
+  assert.throws(() => formToOptions({ copies: '0' }), /--copies/);
 });

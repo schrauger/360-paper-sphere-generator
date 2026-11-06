@@ -52,6 +52,14 @@ function parseBleed(bleed) {
   return mm;
 }
 
+// Spheres per sheet: 'max' (as many as fit) or a whole number ≥ 1.
+function parseCopies(copies) {
+  if (!given(copies) || copies === 'max') return 'max';
+  const n = num(copies, '--copies');
+  if (!Number.isInteger(n) || n < 1) throw new OptionError(`--copies must be max or a whole number ≥ 1 (got ${copies})`);
+  return n;
+}
+
 // Tab ties: off (null) unless asked for; `true` means the default width.
 function parseTies(ties) {
   if (!given(ties) || ties === false) return null;
@@ -67,7 +75,7 @@ function parseTies(ties) {
  * raw: { preset, page ('letter' | 'a4' | … | '<W>x<H>mm' | {widthMm, heightMm}), dpi, diameterMm,
  * marginMm, outline, bleed (mm | 'auto' | 'off', default 'auto'), marks ('none' | 'silhouette'),
  * orientation {yaw, pitch, roll} (degrees), format ('pdf' | 'png' | 'jpg', default 'pdf'), jpegQuality,
- * cutFile ('svg' | 'dxf'), ties (false | true | width in mm; true = 0.5 mm, valid 0.1–3) }.
+ * copies ('max' | N: spheres per sheet; with a diameter, as many as fit or exactly N), cutFile ('svg' | 'dxf'), ties (false | true | width in mm; true = 0.5 mm, valid 0.1–3) }.
  * A preset fixes the sheet at 360craft's size: page, diameterMm, marginMm and marks are then
  * ignored (and dpi only sets the metadata density and the mm ↔ px scale of bleed and the cut file).
  */
@@ -99,6 +107,7 @@ export function normalizeOptions(raw = {}) {
     orientation,
     format: given(raw.format) ? oneOf(raw.format, FORMATS, '--format') : 'pdf',
     jpegQuality,
+    copies: parseCopies(raw.copies),
     cutFile: given(raw.cutFile) ? oneOf(raw.cutFile, CUT_FILES, '--cut-file') : null,
     tieMm: parseTies(raw.ties),
   };

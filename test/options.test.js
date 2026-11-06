@@ -15,6 +15,7 @@ test('defaults', () => {
     orientation: { yaw: 0, pitch: 0, roll: 0 },
     format: 'pdf',
     jpegQuality: 92,
+    copies: 'max',
     cutFile: null,
     tieMm: null,
   });
@@ -78,4 +79,11 @@ test('ties: off by default, true = 0.5 mm, width 0.1-3 mm', () => {
   assert.throws(() => normalizeOptions({ ties: 0.05 }), /--tie-width/);
   assert.throws(() => normalizeOptions({ ties: 3.5 }), /--tie-width/);
   assert.throws(() => normalizeOptions({ ties: 'wide' }), /--tie-width/);
+});
+
+test('copies: max by default, whole numbers ≥ 1 otherwise', () => {
+  assert.equal(normalizeOptions({ copies: 'max' }).copies, 'max');
+  assert.equal(normalizeOptions({ copies: '3' }).copies, 3);
+  assert.equal(normalizeOptions({ copies: '' }).copies, 'max');
+  for (const bad of ['0', '1.5', '-2', 'many']) assert.throws(() => normalizeOptions({ copies: bad }), /--copies/, bad);
 });

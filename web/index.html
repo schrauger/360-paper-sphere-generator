@@ -79,6 +79,12 @@
           </select></div>
         <div id="custom-diameter" class="field" hidden><label for="diameter">Diameter (mm)</label>
           <input id="diameter" name="diameter" type="number" min="1" step="any"></div>
+        <div id="copies-field" class="field" hidden><label for="copies">Spheres per sheet</label>
+          <select id="copies" name="copies">
+            <option value="max" selected>As many as fit</option>
+            <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+            <option value="4">4</option><option value="6">6</option><option value="8">8</option>
+          </select></div>
         <div class="field"><span id="marks-label">Cutter marks</span>
           <div class="seg" role="group" aria-labelledby="marks-label">
             <button type="button" data-marks="none" aria-pressed="true">None</button>

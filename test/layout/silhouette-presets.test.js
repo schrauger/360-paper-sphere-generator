@@ -30,10 +30,14 @@ test('studio3Path names the file by page and diameter', () => {
   assert.equal(studio3Path('letter', 50), 'studio3/letter-50mm.studio3');
 });
 
+// Spheres per sheet at each preset: as many as fit (the .studio3 files are made with these).
+const COPIES = { 40: 2, 45: 2, 50: 1, 55: 1, 60: 1, 62: 1 };
+
 for (const d of SILHOUETTE_PRESETS.letter) {
   test(`preset ${d} mm fits letter with marks, no warning`, () => {
     const { layout } = svgFor(d, 300);
     assert.deepEqual(layout.warnings, []);
+    assert.equal(layout.copies, COPIES[d]);
     assert.equal(layout.diameterMm, d);
   });
 

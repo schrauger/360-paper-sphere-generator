@@ -13,6 +13,7 @@ const USAGE = `Usage: paper-sphere <input> -o <out.pdf|out.png|out.jpg> [options
   --page letter|a4|a3|tabloid|<W>x<H>mm   page size (default letter)
   --dpi N                               72–1200 (default 300)
   --diameter MM                         sphere diameter (default: largest that fits)
+  --copies max|N                        spheres per sheet with --diameter: as many as fit (default) or exactly N
   --margin MM                           margin around the sheet (default 6.35; ignored with --marks silhouette, which uses 10 mm)
   --outline | --no-outline              cut outline (default on)
   --bleed MM|auto|off                   image bleed past the cut line (default auto)
@@ -28,7 +29,7 @@ const FORMAT_OF_EXTENSION = new Map([['pdf', 'pdf'], ['png', 'png'], ['jpg', 'jp
 const OPTIONS = {
   output: { type: 'string', short: 'o' },
   preset: { type: 'string' }, page: { type: 'string' }, dpi: { type: 'string' }, diameter: { type: 'string' },
-  margin: { type: 'string' },
+  margin: { type: 'string' }, copies: { type: 'string' },
   outline: { type: 'boolean' }, 'no-outline': { type: 'boolean' },
   bleed: { type: 'string' }, marks: { type: 'string' },
   yaw: { type: 'string' }, pitch: { type: 'string' }, roll: { type: 'string' },
@@ -84,6 +85,7 @@ async function main() {
     dpi: values.dpi,
     diameterMm: values.diameter,
     marginMm: values.margin,
+    copies: values.copies,
     outline: values['no-outline'] ? false : values.outline,
     bleed: values.bleed,
     marks: values.marks,
@@ -105,7 +107,7 @@ async function main() {
   if (aspect.width !== info.width || aspect.height !== info.height) ({ data, info } = await decode(aspect));
   const pano = { width: info.width, height: info.height, data: new Uint8ClampedArray(data.buffer, data.byteOffset, data.length) };
 
-  const { image, warnings, diameterMm, cutFile } = renderSheet(pano, options);
+  const { image, warnings, diameterMm, copies, cutFile } = renderSheet(pano, options);
   if (options.tieMm && !options.cutFile) warnings.push('--ties has no effect without --cut-file svg|dxf');
   if (format === 'pdf') {
     const rgbDeflated = deflateSync(rgbFromRgba(image.data));
@@ -118,6 +120,8 @@ async function main() {
   }
   if (cutFile) await writeFile(out.replace(/\.[^./\\]+$/, `.${cutFile.type}`), cutFile.content);
   console.error(`Sphere diameter: ${diameterMm.toFixed(1)} mm`);
+  if (copies > 1) console.error(`${copies} spheres on this sheet`);
+  else if (Number.isInteger(options.copies) && options.copies > 1) warnings.push('--copies needs --diameter; one sphere placed');
   for (const w of warnings) console.error(w);
 }
 

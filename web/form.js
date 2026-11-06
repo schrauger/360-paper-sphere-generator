@@ -8,7 +8,7 @@ import { SILHOUETTE_PRESETS } from '../src/layout/silhouette-presets.js';
  * them). Blank values mean "default"; an absent `outline` checkbox means false.
  * Entries: preset, page ('letter' | … | 'custom'), pageWidth, pageHeight (mm, for 'custom'), dpi,
  * diameter, margin, outline, bleedMode ('auto' (the default when blank) | 'off' | 'mm'), bleedMm, marks, yaw, pitch, roll,
- * format, quality, cutFile, ties (checkbox), tieWidth (mm, blank = 0.5). Two choice controls add a mode entry: `diameterMode` ('largest' ignores
+ * format, quality, cutFile, ties (checkbox), tieWidth (mm, blank = 0.5), copies ('max' | N, with a diameter). Two choice controls add a mode entry: `diameterMode` ('largest' ignores
  * `diameter`; `preset-<mm>` is a Silhouette preset size; anything else uses `diameter`) and `dpi` = 'custom' (use `dpiCustom`).
  */
 export function formToOptions(entries) {
@@ -22,6 +22,7 @@ export function formToOptions(entries) {
     dpi: e.dpi === 'custom' ? e.dpiCustom : e.dpi,
     diameterMm: diameter,
     marginMm: e.margin,
+    copies: e.copies,
     outline: e.outline !== undefined && e.outline !== '',
     bleed,
     marks: e.marks,
@@ -52,6 +53,7 @@ export function cliCommandFor(options, inputName) {
   if (o.dpi !== 300) args.push('--dpi', String(o.dpi));
   if (!o.preset) {
     if (o.diameterMm !== null) args.push('--diameter', String(o.diameterMm));
+    if (o.diameterMm !== null && o.copies !== 'max') args.push('--copies', String(o.copies));
     if (o.marginMm !== 6.35) args.push('--margin', String(o.marginMm));
   }
   if (!o.outline) args.push('--no-outline');

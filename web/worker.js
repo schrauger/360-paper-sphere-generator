@@ -1,8 +1,8 @@
 // Module worker: decodes the panorama, renders the three previews and the final sheet.
 // Messages in:  { type: 'load', file } | { type: 'preview', rotation, viewRotation, options, sizes? } | { type: 'render', options }
 // Messages out: { type: 'loaded', width, height, scaled, sourceWidth, sourceHeight }
-//               { type: 'frames', sheet, panorama, globe, diameterMm, warnings, sheetMap? }  (ImageBitmaps)
-//               { type: 'done', blob, format, cutFile, diameterMm, warnings }  (blob is application/octet-stream: a download, not a viewer open)
+//               { type: 'frames', sheet, panorama, globe, diameterMm, copies, warnings, sheetMap? }  (ImageBitmaps)
+//               { type: 'done', blob, format, cutFile, diameterMm, copies, warnings }  (blob is application/octet-stream: a download, not a viewer open)
 //               { type: 'error', message, context: 'load' | 'preview' | 'render' }
 import { MODEL_360CRAFT } from '../src/model/360craft.js';
 import { makeModelGeometry } from '../src/model/geometry.js';
@@ -128,6 +128,7 @@ async function runPreview() {
     const message = {
       type: 'frames', sheet, panorama, globe,
       diameterMm: cache.full.layout.diameterMm,
+      copies: cache.full.layout.copies,
       warnings: [...cache.full.layout.warnings, ...cache.warnings],
     };
     if (!cache.sent) {
@@ -148,10 +149,10 @@ async function render({ options }) {
   const geometry = makeModelGeometry(model);
   const layout = layoutSheet(model, geometry.outline, layoutOptionsFor(options));
   if (tooLargeForCanvas(layout.widthPx, layout.heightPx)) throw new Error(TOO_LARGE_MESSAGE);
-  const { image, warnings, diameterMm, cutFile } = renderSheet(fullPano, options);
+  const { image, warnings, diameterMm, copies, cutFile } = renderSheet(fullPano, options);
   if (options.format === 'pdf') {
     const pdf = await pdfFromImage(image, options.dpi);
-    post({ type: 'done', blob: new Blob([pdf], { type: OCTET_STREAM }), format: 'pdf', cutFile, diameterMm, warnings });
+    post({ type: 'done', blob: new Blob([pdf], { type: OCTET_STREAM }), format: 'pdf', cutFile, diameterMm, copies, warnings });
     return;
   }
   const canvas = new OffscreenCanvas(image.width, image.height);
@@ -169,5 +170,5 @@ async function render({ options }) {
   const encoded = png ? bytes[0] === 0x89 : bytes[0] === 0xff; // browsers hand back another type for a canvas they cannot encode
   if (!encoded) throw new Error(TOO_LARGE_MESSAGE);
   const out = png ? setPngDpi(bytes, options.dpi) : setJpegDpi(bytes, options.dpi);
-  post({ type: 'done', blob: new Blob([out], { type: OCTET_STREAM }), format: options.format, cutFile, diameterMm, warnings });
+  post({ type: 'done', blob: new Blob([out], { type: OCTET_STREAM }), format: options.format, cutFile, diameterMm, copies, warnings });
 }

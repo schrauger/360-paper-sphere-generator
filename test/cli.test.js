@@ -182,3 +182,15 @@ test('--ties and --tie-width leave gaps in the SVG cut file', async () => {
   assert.equal(run(input, '-o', join(dir, 'x.png'), '--tie-width', '9').status, 2);
   assert.match(run(input, '-o', join(dir, 'y.png'), '--dpi', '72', '--ties').stderr, /--ties has no effect without --cut-file/);
 });
+
+test('--copies: several spheres with a small --diameter are reported; N without --diameter warns', async () => {
+  const input = await makeInput('copies.png', 64, 32);
+  const r = run(input, '-o', join(dir, 'c1.png'), '--dpi', '72', '--diameter', '40', '--cut-file', 'svg');
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stderr, /2 spheres on this sheet/);
+  const one = run(input, '-o', join(dir, 'c2.png'), '--dpi', '72', '--diameter', '40', '--copies', '1');
+  assert.equal(one.status, 0, one.stderr);
+  assert.doesNotMatch(one.stderr, /spheres on this sheet/);
+  assert.match(run(input, '-o', join(dir, 'c3.png'), '--dpi', '72', '--copies', '2').stderr, /--copies needs --diameter/);
+  assert.equal(run(input, '-o', join(dir, 'c4.png'), '--copies', '0').status, 2);
+});

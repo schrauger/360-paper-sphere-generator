@@ -28,7 +28,7 @@ export function layoutOptionsFor(options) {
   const { preset, dpi } = options;
   return preset
     ? { preset, dpi }
-    : { page: options.page, dpi, diameterMm: options.diameterMm, marginMm: options.marginMm, marks: options.marks };
+    : { page: options.page, dpi, diameterMm: options.diameterMm, marginMm: options.marginMm, marks: options.marks, copies: options.copies };
 }
 
 /** { bleedR, warnings }: the sphere bleed (R units) for options.bleedMm on `layout`, clamped to MAX_BLEED_R (R31). */
@@ -46,7 +46,7 @@ export function resolveBleed(options, layout, model = MODEL_360CRAFT) {
 }
 
 /**
- * { image: RGBAImage, layout, warnings, diameterMm, cutFile: null | { type, content } } for the
+ * { image: RGBAImage, layout, warnings, diameterMm, copies, cutFile: null | { type, content } } for the
  * panorama `pano` (RGBAImage, exactly 2:1) and `options` (normalizeOptions output). Library
  * RangeErrors from the layout (page too small, sheet too large, …) propagate.
  */
@@ -72,5 +72,5 @@ export function renderSheet(pano, options) {
   let cutFile = null;
   if (options.cutFile === 'svg') cutFile = { type: 'svg', content: cutPathSvg(layout, outline, { includeMarks, tieMm: options.tieMm }) };
   else if (options.cutFile === 'dxf') cutFile = { type: 'dxf', content: cutPathDxf(layout, outline, { includeMarks, tieMm: options.tieMm }) };
-  return { image, layout, warnings, diameterMm: layout.diameterMm, cutFile };
+  return { image, layout, warnings, diameterMm: layout.diameterMm, copies: layout.copies, cutFile };
 }

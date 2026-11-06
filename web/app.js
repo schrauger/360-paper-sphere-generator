@@ -126,6 +126,8 @@ function syncFormState() {
   }
   toggleField('custom-page', ['pageWidth', 'pageHeight'], $('page').value === 'custom' && !preset);
   toggleField('custom-diameter', ['diameter'], $('diameterMode').value === 'custom' && !preset);
+  // Spheres per sheet matters only with a chosen diameter (Largest is always one pair).
+  toggleField('copies-field', ['copies'], $('diameterMode').value !== 'largest' && !preset);
   toggleField('custom-bleed', ['bleedMm'], $('bleedMode').value === 'mm');
   toggleField('custom-dpi', ['dpiCustom'], $('dpi').value === 'custom');
   const cutting = ['svg', 'dxf'].includes($('cutFile').value);
@@ -227,8 +229,9 @@ function previewDone() {
 
 let lastDiameter = null;
 
-function showDiameter(diameterMm) {
-  $('info').textContent = `Sphere diameter: ${diameterMm.toFixed(1)} mm`;
+function showDiameter(diameterMm, copies = 1) {
+  const count = copies > 1 ? ` · ${copies} spheres on this sheet` : '';
+  $('info').textContent = `Sphere diameter: ${diameterMm.toFixed(1)} mm${count}`;
   $('largest-option').textContent = `Largest (${diameterMm.toFixed(1)} mm)`;
   if ($('diameterMode').value === 'largest') lastDiameter = diameterMm;
 }
@@ -254,7 +257,7 @@ function handleMessage(event) {
     drawFrame(canvases.sheet, m.sheet);
     drawFrame(canvases.panorama, m.panorama);
     drawFrame(canvases.globe, m.globe);
-    showDiameter(m.diameterMm);
+    showDiameter(m.diameterMm, m.copies);
     showWarnings(m.warnings);
     $('render-error').textContent = '';
     previewDone();
@@ -513,7 +516,7 @@ function download(blob, name) {
 
 const FORMATS = new Set(['pdf', 'png', 'jpg']);
 
-async function finishRender({ blob, format, cutFile, diameterMm, warnings }) {
+async function finishRender({ blob, format, cutFile, diameterMm, copies, warnings }) {
   setRendering(false);
   const base = fileName.replace(/\.[^./\\]+$/, '') || 'panorama';
   if (!FORMATS.has(format)) throw new Error(`Unexpected sheet format ${format || '(none)'}`);
@@ -524,7 +527,7 @@ async function finishRender({ blob, format, cutFile, diameterMm, warnings }) {
     links.push(download(new Blob([cutFile.content], { type }), `${base}-sheet.${cutFile.type}`));
   }
   if (studio3) links.push(downloadUrl(studio3.url, studio3.name));
-  showDiameter(diameterMm);
+  showDiameter(diameterMm, copies);
   $('downloads').replaceChildren('Downloaded: ', ...links.flatMap((a, i) => (i ? [' · ', a] : [a])));
   showWarnings(warnings);
 }

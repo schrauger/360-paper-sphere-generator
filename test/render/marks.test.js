@@ -61,10 +61,10 @@ test('drawMarks: L legs 0.54 mm thick and 13.65 mm long', () => {
   assert.ok(Math.abs(area - (2 * leg * stroke - stroke * stroke)) < 60, `${area}`);
 });
 
-test('R28: guide throws RangeError for more than 8 pieces', () => {
-  const nine = { ...layout, pieces: Array.from({ length: 9 }, () => layout.pieces[0]) };
-  assert.throws(() => buildGuide(nine, geometry), RangeError);
-  assert.doesNotThrow(() => buildGuide({ ...layout, pieces: Array.from({ length: 8 }, () => layout.pieces[0]) }, geometry));
+test('R28: guide throws RangeError for more than 120 pieces', () => {
+  const many = (n) => ({ ...layout, pieces: Array.from({ length: n }, () => layout.pieces[0]) });
+  assert.throws(() => buildGuide(many(121), geometry), RangeError);
+  assert.doesNotThrow(() => buildGuide(many(120), geometry));
 });
 
 test('R28: makePixelMapper rejects NaN, infinite and negative bleedR', () => {

@@ -1,6 +1,7 @@
 // Sheet layout: the two 360craft presets, or any page size with an optional sphere diameter and
 // Silhouette registration marks.
 import { pieceAffine } from '../model/360craft.js';
+import { gridCandidates, gridPositions, packCopies, pairArea } from './pack.js';
 
 const PRESETS = { 'original-low': 1, 'original-high': 2 }; // × the original-low sheet
 const MM_PER_IN = 25.4;
@@ -16,8 +17,20 @@ const MARK_MARGIN_MM = 10; // with marks the content rectangle is the page inset
 
 const round1 = (v) => Number(v.toFixed(1));
 
+// Grid candidates depend only on the pair's shape and size; the web re-lays out on every change.
+const candidateCache = new WeakMap();
+function candidatesFor(outline, pieceMm, diameterMm) {
+  let byDiameter = candidateCache.get(outline);
+  if (!byDiameter) candidateCache.set(outline, (byDiameter = new Map()));
+  if (!byDiameter.has(diameterMm)) {
+    if (byDiameter.size > 8) byDiameter.clear();
+    byDiameter.set(diameterMm, gridCandidates(pieceMm));
+  }
+  return byDiameter.get(diameterMm);
+}
+
 /**
- * SheetLayout { widthPx, heightPx, dpi, pxPerR, pieces: [{ band, affine }], marks, warnings,
+ * SheetLayout { widthPx, heightPx, dpi, pxPerR, copies, pieces: [{ band, affine }], marks, warnings,
  * diameterMm }. Either a preset ('original-low' | 'original-high') or a page { widthMm, heightMm }.
  * A preset uses the fixed 360craft placement: `outline`, page, diameterMm, marginMm, marks and the
  * DPI range are then ignored (dpi only sets the mm ↔ px scale). With a page, the two pieces keep
@@ -25,11 +38,16 @@ const round1 = (v) => Number(v.toFixed(1));
  * the sheet is then enlarged, with a warning, if the sphere does not fit) and centred.
  * marks: 'none' | 'silhouette' (entries in px, x/y = the mark's outer corner). With marks the
  * margin is 10 mm on every side automatically and `marginMm` is ignored.
+ * copies: 'max' | N. With a `diameterMm`, as many pairs as fit (or exactly N; the sheet is enlarged,
+ * with a warning, if N do not fit) are packed on a grid; without one the layout is the single
+ * largest pair. `copies` in the result is the number of pairs; `pieces` holds each pair's two
+ * pieces in turn.
  */
-export function layoutSheet(model, outline, { preset, page, dpi = 300, diameterMm = null, marginMm = 6.35, marks = 'none' } = {}) {
+export function layoutSheet(model, outline, { preset, page, dpi = 300, diameterMm = null, marginMm = 6.35, marks = 'none', copies = 'max' } = {}) {
   if (preset !== undefined || !page) return presetLayout(model, preset, dpi);
   if (!(dpi >= 72 && dpi <= 1200)) throw new RangeError('DPI must be between 72 and 1200');
   if (!(marginMm >= 0) || !Number.isFinite(marginMm)) throw new RangeError('Margin must be a finite number of mm ≥ 0');
+  if (copies !== 'max' && !(Number.isInteger(copies) && copies >= 1)) throw new RangeError('Copies must be max or a whole number ≥ 1');
   if (marks !== 'none' && marks !== 'silhouette') throw new RangeError(`Unknown marks: ${marks}. Use none or silhouette`);
   const pxPerMm = dpi / MM_PER_IN;
   checkSheetSize(page.widthMm * pxPerMm, page.heightMm * pxPerMm);
@@ -81,6 +99,7 @@ export function layoutSheet(model, outline, { preset, page, dpi = 300, diameterM
 
   const warnings = [];
   let pxPerR;
+  let packed = null; // { rot90, centres (mm) } when several pairs are placed
   if (diameterMm === null || diameterMm === undefined) {
     const boxes = markBoxesMm(widthMm, heightMm);
     let hi = Math.min(((rect.x1 - rect.x0) * pxPerMm) / bw, ((rect.y1 - rect.y0) * pxPerMm) / bh);
@@ -98,7 +117,33 @@ export function layoutSheet(model, outline, { preset, page, dpi = 300, diameterM
   } else {
     if (!(diameterMm > 0) || !Number.isFinite(diameterMm)) throw new RangeError('Sphere diameter must be a positive number of mm');
     pxPerR = ((diameterMm / 2) / MM_PER_IN) * dpi;
-    if (!fits(pxPerR, rect, markBoxesMm(widthMm, heightMm))) {
+    const boxes = markBoxesMm(widthMm, heightMm);
+    // The pair's two cut paths in mm (centred by the packer).
+    const rMm = diameterMm / 2;
+    const pieceMm = affinesAt(1).map(([a, b, c, d, e, f]) => outline.cutPath.map(([X, Y]) => [(a * X + c * Y + e) * rMm, (b * X + d * Y + f) * rMm]));
+    const candidates = () => candidatesFor(outline, pieceMm, diameterMm);
+    // Two pairs cannot fit when their outlines alone are larger than the rectangle.
+    const roomForMore = copies !== 1 && (copies === 'max' ? 2 : copies) * pairArea(pieceMm) <= (rect.x1 - rect.x0) * (rect.y1 - rect.y0);
+    if (roomForMore) {
+      packed = packCopies(pieceMm, rect, boxes, { copies, candidates: candidates() });
+      if (packed && packed.copies === 1) packed = null; // a single pair keeps the classic centring
+    }
+    if (copies !== 'max' && copies > 1 && (!packed || packed.copies !== copies)) {
+      // N pairs do not fit: grow the sheet around a near-square grid of them.
+      packed = null;
+      const c = candidates()[0];
+      const cols = Math.ceil(Math.sqrt(copies));
+      const { centres, box } = gridPositions(c, cols, Math.ceil(copies / cols), copies);
+      const pad = silhouette ? MARK_INSET_MM + LEG_MM + CLEARANCE_MM : marginMm;
+      const newW = box[2] - box[0] + 2 * pad;
+      const newH = box[3] - box[1] + 2 * pad;
+      warnings.push(`${copies} spheres of ${round1(diameterMm)} mm do not fit on ${round1(widthMm)}×${round1(heightMm)} mm; sheet enlarged to ${round1(newW)}×${round1(newH)} mm`);
+      widthMm = newW;
+      heightMm = newH;
+      rect = rectMm(widthMm, heightMm);
+      checkSheetSize(widthMm * pxPerMm, heightMm * pxPerMm);
+      packed = { copies, rot90: false, centres: centres.map(([x, y]) => [x - box[0] + pad, y - box[1] + pad]) };
+    } else if (!packed && !fits(pxPerR, rect, boxes)) {
       // Grow the sheet to the arrangement plus margins; with marks, the arrangement clears the
       // marks' legs and the clearance on every side (the legs reach MARK_INSET + LEG from the edge).
       // (A bounding-box bound: the real arrangement is not rectangular, so this may be generous.)
@@ -124,12 +169,25 @@ export function layoutSheet(model, outline, { preset, page, dpi = 300, diameterM
       { type: 'corner', corner: 'bottom-left', x: toPx(MARK_INSET_MM), y: toPx(heightMm - MARK_INSET_MM), leg: toPx(LEG_MM), stroke: toPx(STROKE_MM) },
     );
   }
+  // Each copy: the pair centred on its bounding box, optionally turned 90°, moved to its centre.
+  function packedPieces() {
+    const cx = (pxPerR * (bb[0] + bb[2])) / 2;
+    const cy = (pxPerR * (bb[1] + bb[3])) / 2;
+    const base = affinesAt(pxPerR);
+    return packed.centres.flatMap(([mx, my]) => lowPieces.map((piece, i) => {
+      const [a, b, c, d, e, f] = base[i];
+      const [le, lf] = [e - cx, f - cy];
+      const m = packed.rot90 ? [-b, a, -d, c, -lf, le] : [a, b, c, d, le, lf]; // (x, y) ↦ (−y, x) when turned
+      return { band: piece.band, affine: [m[0], m[1], m[2], m[3], m[4] + mx * pxPerMm, m[5] + my * pxPerMm] };
+    }));
+  }
   return {
     widthPx: Math.round(toPx(widthMm)),
     heightPx: Math.round(toPx(heightMm)),
     dpi,
     pxPerR,
-    pieces: lowPieces.map((piece, i) => {
+    copies: packed ? packed.centres.length : 1,
+    pieces: packed ? packedPieces() : lowPieces.map((piece, i) => {
       const [a, b, c, d, e, f] = affinesAt(pxPerR)[i];
       return { band: piece.band, affine: [a, b, c, d, e + tx, f + ty] };
     }),
