@@ -54,7 +54,7 @@ anything else is an error.
 | `--diameter MM` | Sphere diameter (default: the largest that fits the page). |
 | `--margin MM` | Margin around the sheet (default 6.35). Ignored with `--marks silhouette`, which uses 10 mm. |
 | `--outline`, `--no-outline` | Draw the cut outline (default on). |
-| `--bleed MM\|auto\|off` | Image printed past the cut line (default `off`; `auto` is 360craft's bleed). |
+| `--bleed MM\|auto\|off` | Image printed past the cut line (default `auto`, 360craft's bleed; `off` for none). |
 | `--marks silhouette` | Silhouette Studio's Type 1 registration marks at a 10 mm inset; the margin becomes 10 mm. In an SVG cut file the cut lines are red and the marks black, so you can cut by line colour and skip the marks. |
 | `--yaw D`, `--pitch D`, `--roll D` | Panorama orientation in degrees (default 0, which is 360craft's layout). |
 | `--cut-file svg\|dxf` | Also write the cut path as `<out>.svg` or `<out>.dxf`. |

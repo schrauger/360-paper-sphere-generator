@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { OptionError, normalizeOptions } from '../../src/options.js';
 import { cliCommandFor, formToOptions } from '../../web/form.js';
 
@@ -23,6 +24,13 @@ test('formToOptions maps every form field; checkbox absence = false', () => {
   assert.deepEqual(formToOptions({ ...FULL, page: 'custom', pageWidth: '200', pageHeight: '300' }).page, { widthMm: 200, heightMm: 300 });
   // Blank fields are defaults.
   assert.deepEqual(formToOptions({ outline: 'on' }), normalizeOptions({}));
+});
+
+test('bleed defaults to auto in the form and the select lists Auto first and selected', async () => {
+  assert.equal(formToOptions({ outline: 'on' }).bleedMm, 'auto');
+  const html = await readFile(new URL('../../web/index.html', import.meta.url), 'utf8');
+  const select = /<select id="bleedMode"[^>]*>([\s\S]*?)<\/select>/.exec(html)[1];
+  assert.match(select, /^\s*<option value="auto" selected>Auto<\/option>\s*<option value="off">Off<\/option>/);
 });
 
 test('formToOptions: diameter and resolution choice controls', () => {
@@ -64,10 +72,12 @@ function parseCommand(cmd) {
 
 test('cliCommandFor omits defaults and round-trips through normalizeOptions', () => {
   assert.equal(cliCommandFor(normalizeOptions({}), 'photo.jpg'), 'paper-sphere photo.jpg -o sheet.pdf');
+  assert.equal(cliCommandFor(normalizeOptions({ bleed: 'off' }), 'photo.jpg'), 'paper-sphere photo.jpg -o sheet.pdf --bleed off');
+  assert.equal(cliCommandFor(normalizeOptions({ bleed: 1.5 }), 'photo.jpg'), 'paper-sphere photo.jpg -o sheet.pdf --bleed 1.5');
   assert.equal(cliCommandFor(normalizeOptions({ format: 'png' }), 'photo.jpg'), 'paper-sphere photo.jpg -o sheet.png');
   assert.equal(
     cliCommandFor(normalizeOptions({ outline: false, bleed: 'auto', orientation: { yaw: 42 } }), 'photo.jpg'),
-    'paper-sphere photo.jpg -o sheet.pdf --no-outline --bleed auto --yaw 42',
+    'paper-sphere photo.jpg -o sheet.pdf --no-outline --yaw 42',
   );
   const cases = [
     formToOptions(FULL),

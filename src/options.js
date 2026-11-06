@@ -54,7 +54,7 @@ function parseBleed(bleed) {
 /**
  * RenderOptions from raw (CLI or web) input; every field is optional.
  * raw: { preset, page ('letter' | 'a4' | … | '<W>x<H>mm' | {widthMm, heightMm}), dpi, diameterMm,
- * marginMm, outline, bleed (mm | 'auto' | 'off'), marks ('none' | 'silhouette'),
+ * marginMm, outline, bleed (mm | 'auto' | 'off', default 'auto'), marks ('none' | 'silhouette'),
  * orientation {yaw, pitch, roll} (degrees), format ('pdf' | 'png' | 'jpg', default 'pdf'), jpegQuality,
  * cutFile ('svg' | 'dxf') }.
  * A preset fixes the sheet at 360craft's size: page, diameterMm, marginMm and marks are then
@@ -83,7 +83,7 @@ export function normalizeOptions(raw = {}) {
     diameterMm,
     marginMm,
     outline: raw.outline ?? true,
-    bleedMm: given(raw.bleed) ? parseBleed(raw.bleed) : 0,
+    bleedMm: given(raw.bleed) ? parseBleed(raw.bleed) : 'auto',
     marks: given(raw.marks) ? oneOf(raw.marks, MARKS, '--marks') : 'none',
     orientation,
     format: given(raw.format) ? oneOf(raw.format, FORMATS, '--format') : 'pdf',

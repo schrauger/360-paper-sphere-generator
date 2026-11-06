@@ -110,6 +110,12 @@ test('--cut-file svg writes out.svg next to out.png', async () => {
   assert.match(readFileSync(join(dir, 's-out.dxf'), 'utf8'), /ENTITIES/);
 });
 
+test('usage gives bleed auto as the default', () => {
+  const r = run('--help');
+  assert.equal(r.status, 0);
+  assert.match(r.stdout, /--bleed MM\|auto\|off\s+.*\(default auto\)/);
+});
+
 test('--bleed larger than the supported width is limited with a warning', async () => {
   const input = await makeInput('w.png', 64, 32);
   const r = run(input, '-o', join(dir, 'w-out.png'), '--dpi', '72', '--bleed', '50');

@@ -6,7 +6,7 @@ import { SILHOUETTE_PRESETS } from '../src/layout/silhouette-presets.js';
  * RenderOptions (normalizeOptions) from the form's entries (name → string, as FormData gives
  * them). Blank values mean "default"; an absent `outline` checkbox means false.
  * Entries: preset, page ('letter' | … | 'custom'), pageWidth, pageHeight (mm, for 'custom'), dpi,
- * diameter, margin, outline, bleedMode ('off' | 'auto' | 'mm'), bleedMm, marks, yaw, pitch, roll,
+ * diameter, margin, outline, bleedMode ('auto' (the default when blank) | 'off' | 'mm'), bleedMm, marks, yaw, pitch, roll,
  * format, quality, cutFile. Two choice controls add a mode entry: `diameterMode` ('largest' ignores
  * `diameter`; `preset-<mm>` is a Silhouette preset size; anything else uses `diameter`) and `dpi` = 'custom' (use `dpiCustom`).
  */
@@ -14,7 +14,7 @@ export function formToOptions(entries) {
   const e = entries;
   const mode = e.diameterMode ?? '';
   const diameter = mode === 'largest' ? '' : mode.startsWith('preset-') ? mode.slice('preset-'.length) : e.diameter;
-  const bleed = e.bleedMode === 'auto' ? 'auto' : e.bleedMode === 'mm' ? e.bleedMm : 'off';
+  const bleed = e.bleedMode === 'off' ? 'off' : e.bleedMode === 'mm' ? e.bleedMm : 'auto';
   return normalizeOptions({
     preset: e.preset,
     page: e.page === 'custom' ? `${(e.pageWidth ?? '').trim()}x${(e.pageHeight ?? '').trim()}mm` : e.page,
@@ -53,8 +53,8 @@ export function cliCommandFor(options, inputName) {
     if (o.marginMm !== 6.35) args.push('--margin', String(o.marginMm));
   }
   if (!o.outline) args.push('--no-outline');
-  if (o.bleedMm === 'auto') args.push('--bleed', 'auto');
-  else if (o.bleedMm > 0) args.push('--bleed', String(o.bleedMm));
+  if (o.bleedMm === 0) args.push('--bleed', 'off'); // auto is the default and needs no flag
+  else if (o.bleedMm !== 'auto') args.push('--bleed', String(o.bleedMm));
   if (!o.preset && o.marks !== 'none') args.push('--marks', o.marks);
   for (const axis of ['yaw', 'pitch', 'roll']) if (o.orientation[axis] !== 0) args.push(`--${axis}`, String(o.orientation[axis]));
   if (o.cutFile) args.push('--cut-file', o.cutFile);

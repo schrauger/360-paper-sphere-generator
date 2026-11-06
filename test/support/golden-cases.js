@@ -18,7 +18,7 @@ export const CASES = [
   },
   {
     name: 'a4-no-outline-svg',
-    raw: { page: 'a4', dpi: 100, outline: false, cutFile: 'svg' },
+    raw: { page: 'a4', dpi: 100, bleed: 'off', outline: false, cutFile: 'svg' },
   },
 ];
 

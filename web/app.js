@@ -255,7 +255,10 @@ function handleMessage(event) {
     $('render-error').textContent = '';
     previewDone();
   } else if (m.type === 'done') {
-    finishRender(m);
+    finishRender(m).catch((e) => {
+      setRendering(false);
+      $('render-error').textContent = e.message;
+    });
   } else if (m.type === 'error') {
     if (m.context === 'load') {
       loaded = false;
@@ -504,14 +507,13 @@ function download(blob, name) {
   return Object.assign(document.createElement('a'), { href: url, download: name, textContent: name });
 }
 
-const EXTENSIONS = new Map([['application/pdf', 'pdf'], ['image/png', 'png'], ['image/jpeg', 'jpg']]);
+const FORMATS = new Set(['pdf', 'png', 'jpg']);
 
-async function finishRender({ blob, cutFile, diameterMm, warnings }) {
+async function finishRender({ blob, format, cutFile, diameterMm, warnings }) {
   setRendering(false);
   const base = fileName.replace(/\.[^./\\]+$/, '') || 'panorama';
-  const extension = EXTENSIONS.get(blob.type);
-  if (!extension) throw new Error(`Unexpected sheet type ${blob.type || '(none)'}`);
-  const links = [download(blob, `${base}-sheet.${extension}`)];
+  if (!FORMATS.has(format)) throw new Error(`Unexpected sheet format ${format || '(none)'}`);
+  const links = [download(blob, `${base}-sheet.${format}`)];
   const studio3 = await studio3Choice();
   if (cutFile) {
     const type = cutFile.type === 'svg' ? 'image/svg+xml' : 'application/dxf';

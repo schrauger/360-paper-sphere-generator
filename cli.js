@@ -15,7 +15,7 @@ const USAGE = `Usage: paper-sphere <input> -o <out.pdf|out.png|out.jpg> [options
   --diameter MM                         sphere diameter (default: largest that fits)
   --margin MM                           margin around the sheet (default 6.35; ignored with --marks silhouette, which uses 10 mm)
   --outline | --no-outline              cut outline (default on)
-  --bleed MM|auto|off                   image bleed past the cut line (default off)
+  --bleed MM|auto|off                   image bleed past the cut line (default auto)
   --marks silhouette                    Silhouette Studio Type 1 registration marks (10 mm inset; margin 10 mm)
   --yaw D --pitch D --roll D            panorama orientation in degrees
   --cut-file svg|dxf                    also write <out>.svg / <out>.dxf

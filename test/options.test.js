@@ -10,7 +10,7 @@ test('defaults', () => {
     diameterMm: null,
     marginMm: 6.35,
     outline: true,
-    bleedMm: 0,
+    bleedMm: 'auto',
     marks: 'none',
     orientation: { yaw: 0, pitch: 0, roll: 0 },
     format: 'pdf',
