@@ -77,8 +77,9 @@ test('panorama view at rotation I: an untinted pixel equals the panorama pixel; 
   for (let j = 0; j < H; j += 3) {
     for (let i = 0; i < W; i += 3) {
       const p = equirectToDirection(i + 0.5, j + 0.5, W, H);
-      // Keep clear of the seams, where the seam lines are drawn (edgeDistance: distance to a seam;
-      // the seams meet at the tips, so this also covers the poles).
+      // Keep clear of the seams, where the seam lines are drawn (edgeDistance: distance to a seam).
+      // Near the poles the preview's first-order seam test is approximate (ruling R38): skip there.
+      if (p[2] > Math.cos(0.5) || p[2] < -Math.cos(0.5)) continue;
       if (Math.abs(geometry.unrolling.edgeDistance(p)) < 0.03) continue;
       const phase = bandPhase(p, spiral);
       const got = pixel(view, i, j).slice(0, 3);

@@ -49,5 +49,10 @@ const sheet = makeSheetPreview(model, geometry, {
   layoutOptions: { preset: 'original-low' },
 });
 time('sheet preview 600×900', () => sheet.render(pano, rotation));
-time('globe 400×400', () => renderGlobe(pano, rotation, rotationFromYPR({ yaw: 20, pitch: 15, roll: 0 }), model, { size: 400 }));
-time('panorama view 1200×600', () => renderPanoramaSeams(pano, rotation, model, { width: 1200 }));
+const viewRotation = rotationFromYPR({ yaw: 20, pitch: 15, roll: 0 });
+time('globe 400×400 (6912 px source)', () => renderGlobe(pano, rotation, viewRotation, model, { size: 400 }));
+time('panorama view 1200×600 (6912 px source)', () => renderPanoramaSeams(pano, rotation, model, { width: 1200 }));
+// T16 previews from a ≤ 2048 px copy of the panorama (ruling R39): the budgets apply here.
+const previewPano = panorama(2048, 1024);
+time('globe 400×400 (2048 px source)', () => renderGlobe(previewPano, rotation, viewRotation, model, { size: 400 }));
+time('panorama view 1200×600 (2048 px source)', () => renderPanoramaSeams(previewPano, rotation, model, { width: 1200 }));

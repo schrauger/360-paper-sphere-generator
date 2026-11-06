@@ -18,7 +18,6 @@ const TINT = [59, 130, 246]; // #3b82f6, band 1
 const TINT_MIX = 0.25;
 const SEAM_RGB = [255, 255, 255];
 const SEAM_PX = 1.5; // seam lines: within this many view px of the seam
-const EDGE_EXACT = 0.1; // edgeDistance (R) is its first-order term beyond this from the edge (develop.js)
 const DASH_PX = 8; // dash period over tab intervals, view px
 const SHADE_BASE = 0.85; // globe: Lambert shading from SHADE_BASE at the rim to 1 at the centre
 
@@ -151,21 +150,18 @@ function modelData(model) {
 
 /**
  * Class of a view point p (band-frame unit vector) at `pixelAngle` sphere radians per view px:
- * PLAIN, TINTED (band 1) or LINE (on a seam, not in a dash gap).
+ * PLAIN, TINTED (band 1) or LINE (on a seam, not in a dash gap). Seam proximity is the cheap
+ * first-order phase-margin distance (R38): exact near the tips only within ~0.5 rad of a pole.
  */
 function classify(p, { geometry, seamTabs }, pixelAngle) {
-  const { spiral, unrolling } = geometry;
+  const { spiral } = geometry;
   const phase = bandPhase(p, spiral);
   const band1 = Math.abs(phase) >= HALF_PI;
-  // edgeDistance is its first-order term `first` (same formula as develop.js) beyond EDGE_EXACT
-  // from the edge, and its costly exact-distance blend only applies within that band, near the
-  // tips. So the exact call is made only where it can matter.
   const theta = thetaOf(p);
   const st = Math.sin(theta);
   const dl = spiral.dLambda(theta);
-  const first = ((HALF_PI - Math.abs(phase)) * st) / Math.sqrt(1 + dl * dl * st * st);
-  if (Math.abs(first) >= EDGE_EXACT) return band1 ? TINTED : PLAIN;
-  if (Math.abs(unrolling.edgeDistance(p)) >= SEAM_PX * pixelAngle) return band1 ? TINTED : PLAIN;
+  const dist = ((HALF_PI - Math.abs(phase)) * st) / Math.sqrt(1 + dl * dl * st * st);
+  if (Math.abs(dist) >= SEAM_PX * pixelAngle) return band1 ? TINTED : PLAIN;
   // The seam's side of band 0: band 1 is band 0 rotated by π about z.
   const q0 = band1 ? [-p[0], -p[1], p[2]] : p;
   const intervals = seamTabs[bandPhase(q0, spiral) >= 0 ? 0 : 1];
@@ -196,23 +192,33 @@ export function renderPanoramaSeams(pano, rotation, model, { width }) {
     data.view = { width, dir, code };
   }
   const { dir, code } = data.view;
-  const out = { width, height, data: new Uint8ClampedArray(width * height * 4) };
-  const p = new Float64Array(3);
+  const n = width * height;
+  const out = { width, height, data: new Uint8ClampedArray(4 * n) };
+  const m = rotation;
   const q = new Float64Array(3);
   const uv = [0, 0];
   const rgb = new Float64Array(3);
-  for (let k = 0; k < width * height; k++) {
-    p[0] = dir[3 * k];
-    p[1] = dir[3 * k + 1];
-    p[2] = dir[3 * k + 2];
-    directionToEquirect(rotateInto(rotation, p, q), pano.width, pano.height, uv);
+  const { data: px } = out;
+  for (let k = 0; k < n; k++) {
+    const x = dir[3 * k];
+    const y = dir[3 * k + 1];
+    const z = dir[3 * k + 2];
+    q[0] = m[0] * x + m[1] * y + m[2] * z;
+    q[1] = m[3] * x + m[4] * y + m[5] * z;
+    q[2] = m[6] * x + m[7] * y + m[8] * z;
+    // Unit q (the rotation keeps unit length): the same mapping as directionToEquirect, with
+    // v = acos(z)·H/π = (π/2 − lat)·H/π, one trig call less.
+    let u = ((Math.atan2(q[1], q[0]) + Math.PI) / (2 * Math.PI)) * pano.width;
+    if (u >= pano.width) u -= pano.width;
+    uv[0] = u;
+    uv[1] = (Math.acos(Math.max(-1, Math.min(1, q[2]))) / Math.PI) * pano.height;
     sampleEquirect(pano, uv[0], uv[1], rgb, 0);
-    shadeClass(rgb, code[k]);
+    if (code[k] !== PLAIN) shadeClass(rgb, code[k]);
     const o = 4 * k;
-    out.data[o] = rgb[0];
-    out.data[o + 1] = rgb[1];
-    out.data[o + 2] = rgb[2];
-    out.data[o + 3] = 255;
+    px[o] = rgb[0];
+    px[o + 1] = rgb[1];
+    px[o + 2] = rgb[2];
+    px[o + 3] = 255;
   }
   return out;
 }
