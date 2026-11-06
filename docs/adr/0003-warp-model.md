@@ -233,6 +233,9 @@ The error is not limited to the tip curls: the body is at ≈ 2 px colour error 
 and a global shift of the reference by up to 1.5 px does not reduce it (best shift 0.5 px: 5.12 → 4.95),
 so there is no convention offset. This is the accepted fit accuracy seen at original-high: 0.3–0.55 px
 at low res is 0.6–1.1 px here, a misregistration of about the size that defines the half-pixel
-tolerance. The tip curls, where the seam is up to 2–3 px off (R19), are worse. The thresholds are kept
-and the three tests are `todo` until a ruling; the mask agreement misses only on 2018-09-b, by 0.03%
-(thin disagreement along the outline).
+tolerance. The tip curls, where the seam is up to 2–3 px off (R19), are worse.
+
+**Limits (ruling R29).** The shortfall is the accepted T6 fit error (correspondence median 0.315
+low-res px) at original-high, about one high-res pixel of registration, not a T10 defect. The tests
+therefore assert MAE ≤ 2 × the T2 tolerance (alaska 7.10, 2018-09-a 3.02, 2018-09-b 2.68; all met)
+and mask agreement ≥ 0.994 (2018-09-b is 0.9947), and still print both and write the diff heatmaps.

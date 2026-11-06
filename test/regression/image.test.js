@@ -25,13 +25,11 @@ const manifest = loadManifest();
 const ERODE_PX = 6;
 const NEAR_WHITE = 12;
 const FAR_INK_PX = 20;
-const AGREEMENT = 0.995;
-
-// The warp model's accepted accuracy (ADR-0003, R19) does not reach the per-fixture half-pixel colour
-// tolerances at original-high: body MAE ≈ 2.1–2.9 against 1.3–3.6, tip curls worse (see ADR-0003, Style).
-// The thresholds are kept as they are and reported, not loosened: the tests run (and print MAE and
-// agreement) as `todo` so a miss does not fail the suite until the controller rules on it.
-const KNOWN_MISS = 'misses the half-pixel tolerance with the accepted T6 warp model (ADR-0003, Style)';
+// Ruling R29: the accepted T6 fit error (correspondence median 0.315 low-res px) is about one
+// original-high pixel of registration, so the colour MAE may be twice the half-pixel tolerance
+// (which is itself the MAE of a half-pixel shift) and the mask agreement 0.994 instead of 0.995.
+const MAE_FACTOR = 2;
+const AGREEMENT = 0.994;
 
 const alignPath = (id) => path.resolve('test-output/research', `${id}.align.json`);
 const skipFor = (f) => {
@@ -84,7 +82,7 @@ function canonicalReference(ref, f, w, h) {
 }
 
 for (const f of manifest?.fixtures ?? []) {
-  test(`${f.id} matches 360craft`, { skip: skipFor(f), todo: KNOWN_MISS }, async () => {
+  test(`${f.id} matches 360craft`, { skip: skipFor(f) }, async () => {
     const layout = layoutSheet(model, geometry.outline, { preset: f.preset });
     const { widthPx: w, heightPx: h } = layout;
     const pano = await loadRGBA(f.panorama);
@@ -147,9 +145,9 @@ for (const f of manifest?.fixtures ?? []) {
     const mae = sum / (3 * n);
     const agreement = agree / considered;
     await savePNG({ width: w, height: h, data: heat }, path.resolve('test-output/regression', `${f.id}-diff.png`), 3);
-    const msg = `${f.id}: MAE ${mae.toFixed(3)} (limit ${tolerances[f.id].maeHalfPixel}), mask agreement ${(agreement * 100).toFixed(3)}% over ${n} interior px`;
+    const msg = `${f.id}: MAE ${mae.toFixed(3)} (limit ${MAE_FACTOR * tolerances[f.id].maeHalfPixel}), mask agreement ${(agreement * 100).toFixed(3)}% over ${n} interior px`;
     console.log(msg);
-    assert.ok(mae <= tolerances[f.id].maeHalfPixel, msg);
+    assert.ok(mae <= MAE_FACTOR * tolerances[f.id].maeHalfPixel, msg);
     assert.ok(agreement >= AGREEMENT, msg);
   });
 }
