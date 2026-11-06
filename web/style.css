@@ -109,6 +109,14 @@ input[type=checkbox] { width: 1.15rem; height: 1.15rem; accent-color: var(--mat)
 .seg button + button { border-left: 1px solid #8b9993; }
 .seg button:focus-visible { outline: 2px solid var(--focus); outline-offset: -6px; box-shadow: inset 0 0 0 2px var(--ink); }
 .seg button[aria-pressed=true] { background: var(--ink); color: var(--paper); }
+/* Silhouette cut file chosen: fields that cannot work with it, and dropdown items that can or cannot. */
+.incompatible { border-color: var(--error) !important; background: #fbe9e6 !important; }
+.seg.incompatible button { background: #fbe9e6; }
+.seg.incompatible button[aria-pressed=true] { background: var(--error); }
+option.avail { background: #e3f3e8; color: #14502f; }
+option.unavail { background: #eceae6; color: #8a1f15; }
+.incompatible-note { margin: .5rem 0 0; padding: .4rem .6rem; border-left: 3px solid var(--error); background: #fbe9e6; color: var(--error); font-size: .92rem; }
+.incompatible-note[hidden] { display: none; }
 .hint { font-size: .88rem; color: var(--muted); margin: .4rem 0 0; }
 .meta { font-size: .92rem; color: var(--muted); margin: .5rem 0 0; min-height: 1.4em; }
 :focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }

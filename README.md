@@ -64,8 +64,11 @@ anything else is an error.
 
 ### Silhouette print & cut
 
-Choose Letter, Silhouette marks and one of the preset sphere sizes in the web app, then download the
-sheet (a PDF) and the matching `.studio3` cut file beside it. Print the PDF at 100% (no scaling or
+Choose Letter, one of the listed sphere sizes (40, 45, 50, 55, 60 or 62 mm), Silhouette cutter marks and
+"As many as fit" in the web app, set Cut file download to `.studio3`, then download the
+sheet (a PDF) and the matching `.studio3` cut file beside it. Choosing `.studio3` sets the marks and
+spheres per sheet for you; any other page, size or count is flagged in red and the cut file is not
+offered (the sheet still downloads). Print the PDF at 100% (no scaling or
 fit to page), open the `.studio3` in Silhouette Studio, load the printed sheet and cut. The files
 live in [`studio3/`](studio3/README.md) and are added size by size as they are made (none exist yet); if
 one is missing for a size, the web app says so and you can use the SVG cut file instead.

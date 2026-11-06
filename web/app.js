@@ -7,7 +7,7 @@ import { totalRotation } from '../src/render/warp.js';
 import { apply, equirectToDirection } from '../src/sphere/orient.js';
 import { dragPhoto, orbitView, rollPhoto, userYPR } from '../src/interact/drag.js';
 import { cliCommandFor, formToOptions } from './form.js';
-import { SILHOUETTE_PRESETS, studio3Path } from '../src/layout/silhouette-presets.js';
+import { SILHOUETTE_PRESETS, DIAMETER_CHOICES_MM, studio3Path, studio3Problems } from '../src/layout/silhouette-presets.js';
 
 const $ = (id) => document.getElementById(id);
 const form = $('options');
@@ -56,28 +56,67 @@ let savedMargin = null; // the user's margin while Silhouette marks force 10 mm
 
 // ---- Silhouette preset sizes ---------------------------------------------------------------
 
-const presetOptions = SILHOUETTE_PRESETS.letter.map((mm) => Object.assign(document.createElement('option'), {
-  value: `preset-${mm}`, textContent: `${mm} mm · Silhouette cut file`,
-}));
 const isPresetMode = (mode) => mode.startsWith('preset-');
 
-/** Preset diameters are offered only for Letter + Silhouette marks (and no 360craft preset); otherwise they are removed and a chosen preset size becomes the same size as a Custom diameter. */
-function syncPresetChoices() {
-  const select = $('diameterMode');
-  const offer = $('page').value === 'letter' && $('marks').value === 'silhouette';
-  const listed = presetOptions[0].parentNode === select;
-  if (offer && !listed) select.append(...presetOptions);
-  else if (!offer && listed) {
-    const chosen = isPresetMode(select.value) ? select.value.slice('preset-'.length) : null;
-    presetOptions.forEach((o) => o.remove());
-    if (chosen) {
-      select.value = 'custom';
-      $('diameter').value = chosen;
-    }
+// The fixed diameters, offered for every page. "Largest" stays first and "Custom…" last.
+for (const mm of DIAMETER_CHOICES_MM) {
+  $('diameterMode').insertBefore(Object.assign(document.createElement('option'), { value: `preset-${mm}`, textContent: `${mm} mm` }), $('diameterMode').querySelector('[value=custom]'));
+}
+
+/** The chosen diameter in mm: a fixed size or a Custom number, else null (Largest, or nothing valid typed). */
+function chosenDiameter() {
+  const mode = $('diameterMode').value;
+  if (isPresetMode(mode)) return Number(mode.slice('preset-'.length));
+  if (mode !== 'custom') return null;
+  const v = Number($('diameter').value);
+  return $('diameter').value.trim() !== '' && Number.isFinite(v) ? v : null;
+}
+
+const listMm = (sizes) => `${sizes.slice(0, -1).join(', ')} or ${sizes.at(-1)}`;
+const pageLabel = (value) => $('page').querySelector(`[value="${value}"]`).textContent.replace(/ \(.*\)$/, '');
+
+/** The Silhouette problems for the current form, as field names (empty unless .studio3 is chosen). */
+function currentProblems() {
+  if ($('cutFile').value !== 'studio3') return [];
+  return studio3Problems({ pageName: $('page').value, diameterMm: chosenDiameter(), copies: $('copies').value, marks: $('marks').value });
+}
+
+/** Colour the page and diameter items, flag the offending fields and explain; all cleared unless .studio3 is chosen. */
+function syncStudio3Validation() {
+  const on = $('cutFile').value === 'studio3';
+  const problems = currentProblems();
+  const page = $('page').value;
+  const pageSizes = SILHOUETTE_PRESETS[page] ?? [];
+  for (const o of $('page').options) {
+    const ok = o.value in SILHOUETTE_PRESETS;
+    o.classList.toggle('avail', on && ok);
+    o.classList.toggle('unavail', on && !ok);
+    o.title = on ? (ok ? 'Has Silhouette cut files' : 'No Silhouette cut files for this page') : '';
   }
-  const preset = isPresetMode(select.value);
-  $('studio3-option').disabled = !preset;
-  if (!preset && $('cutFile').value === 'studio3') $('cutFile').value = '';
+  for (const o of $('diameterMode').options) {
+    const mm = isPresetMode(o.value) ? Number(o.value.slice('preset-'.length)) : null;
+    const colour = on && mm !== null;
+    const ok = colour && pageSizes.includes(mm);
+    o.classList.toggle('avail', ok);
+    o.classList.toggle('unavail', colour && !ok);
+    o.title = colour ? (ok ? 'Has a Silhouette cut file' : 'No Silhouette cut file for this size on this page') : '';
+  }
+  $('page').classList.toggle('incompatible', problems.includes('page'));
+  $('diameterMode').classList.toggle('incompatible', problems.includes('diameter'));
+  $('diameter').classList.toggle('incompatible', problems.includes('diameter'));
+  $('copies').classList.toggle('incompatible', problems.includes('copies'));
+  document.querySelector('.seg').classList.toggle('incompatible', problems.includes('marks'));
+  const messages = [];
+  if (problems.includes('page') || problems.includes('diameter')) {
+    const pages = Object.keys(SILHOUETTE_PRESETS).map(pageLabel).join(' or ');
+    messages.push(`Silhouette cut files are made in advance for set sizes only, so custom sizes don't work. Choose ${pages} and one of ${listMm(DIAMETER_CHOICES_MM)} mm.`);
+  }
+  if (problems.includes('copies')) {
+    messages.push('Silhouette cut files are made in advance and don\'t work with custom sphere diameters or spheres per sheet. Choose "As many as fit".');
+  }
+  if (problems.includes('marks')) messages.push('Silhouette cut files need Silhouette cutter marks.');
+  $('studio3-problem').textContent = messages.join(' ');
+  $('studio3-problem').hidden = messages.length === 0;
 }
 
 const studio3Exists = new Map(); // repo-relative path → Promise<boolean>
@@ -93,21 +132,14 @@ let studio3Token = 0;
 /** Beside the sheet download: a link to the committed .studio3 for the chosen preset, or a note that it is not available yet. */
 async function showStudio3() {
   const status = $('studio3-status');
-  const mode = $('diameterMode').value;
-  const wanted = $('cutFile').value === 'studio3' && isPresetMode(mode);
+  const wanted = $('cutFile').value === 'studio3' && currentProblems().length === 0;
   const token = ++studio3Token;
   if (!wanted) {
     status.hidden = true;
     status.replaceChildren();
     return;
   }
-  if ($('copies').value !== 'max') {
-    // The committed files are made with the maximum number of spheres per sheet.
-    status.textContent = 'The Silhouette cut file matches "As many as fit" only; the SVG and DXF cut files work with any count.';
-    status.hidden = false;
-    return;
-  }
-  const path = studio3Path('letter', Number(mode.slice('preset-'.length)));
+  const path = studio3Path($('page').value, chosenDiameter());
   const exists = await hasStudio3(path);
   if (token !== studio3Token) return;
   if (exists) {
@@ -123,7 +155,6 @@ async function showStudio3() {
 
 function syncFormState() {
   const silhouette = $('marks').value === 'silhouette';
-  syncPresetChoices();
   for (const button of document.querySelectorAll('[data-marks]')) {
     button.setAttribute('aria-pressed', String(button.dataset.marks === $('marks').value));
   }
@@ -150,6 +181,7 @@ function syncFormState() {
   }
   $('margin').disabled = silhouette;
   $('margin-hint').hidden = !silhouette;
+  syncStudio3Validation();
 }
 
 function updateCliText() {
@@ -352,6 +384,10 @@ form.addEventListener('input', (e) => {
   if (e.target.id === 'diameterMode' && e.target.value === 'custom' && !$('diameter').value && lastDiameter) {
     $('diameter').value = String(Number(lastDiameter.toFixed(1)));
   }
+  if (e.target.id === 'cutFile' && e.target.value === 'studio3') {
+    $('marks').value = 'silhouette';
+    $('copies').value = 'max';
+  }
   syncFormState();
   updateCliText();
   showStudio3();
@@ -505,9 +541,8 @@ let downloadUrls = [];
 
 /** { url, name } of the chosen preset's .studio3 when ".studio3 (Silhouette)" is chosen and the file exists, else null. */
 async function studio3Choice() {
-  const mode = $('diameterMode').value;
-  if ($('cutFile').value !== 'studio3' || !isPresetMode(mode) || $('copies').value !== 'max') return null;
-  const path = studio3Path('letter', Number(mode.slice('preset-'.length)));
+  if ($('cutFile').value !== 'studio3' || currentProblems().length) return null;
+  const path = studio3Path($('page').value, chosenDiameter());
   if (!(await hasStudio3(path))) return null;
   return { url: new URL(`../${path}`, import.meta.url).href, name: path.split('/').pop() };
 }

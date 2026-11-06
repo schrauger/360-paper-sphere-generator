@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SILHOUETTE_PRESETS, studio3Path } from '../../src/layout/silhouette-presets.js';
+import { SILHOUETTE_PRESETS, DIAMETER_CHOICES_MM, studio3Path, studio3Problems } from '../../src/layout/silhouette-presets.js';
 import { MODEL_360CRAFT } from '../../src/model/360craft.js';
 import { makeModelGeometry } from '../../src/model/geometry.js';
 import { layoutSheet } from '../../src/layout/sheet.js';
@@ -52,3 +52,28 @@ for (const d of SILHOUETTE_PRESETS.letter) {
     }
   });
 }
+
+test('DIAMETER_CHOICES_MM is the sorted union of all preset sizes', () => {
+  assert.deepEqual(DIAMETER_CHOICES_MM, [40, 45, 50, 55, 60, 62]);
+});
+
+test('studio3Problems: a preset on Letter with max copies and Silhouette marks has none', () => {
+  assert.deepEqual(studio3Problems({ pageName: 'letter', diameterMm: 50, copies: 'max', marks: 'silhouette' }), []);
+});
+
+test('studio3Problems: a page without presets flags page and diameter', () => {
+  assert.deepEqual(studio3Problems({ pageName: 'a4', diameterMm: 50, copies: 'max', marks: 'silhouette' }), ['page', 'diameter']);
+  assert.deepEqual(studio3Problems({ pageName: 'custom', diameterMm: 50, copies: 'max', marks: 'silhouette' }), ['page', 'diameter']);
+});
+
+test('studio3Problems: Largest (null) and non-preset diameters flag diameter; an exact preset number is fine', () => {
+  const base = { pageName: 'letter', copies: 'max', marks: 'silhouette' };
+  assert.deepEqual(studio3Problems({ ...base, diameterMm: null }), ['diameter']);
+  assert.deepEqual(studio3Problems({ ...base, diameterMm: 51 }), ['diameter']);
+  assert.deepEqual(studio3Problems({ ...base, diameterMm: 55 }), []);
+});
+
+test('studio3Problems: copies other than max and marks other than silhouette are flagged', () => {
+  assert.deepEqual(studio3Problems({ pageName: 'letter', diameterMm: 50, copies: '2', marks: 'silhouette' }), ['copies']);
+  assert.deepEqual(studio3Problems({ pageName: 'letter', diameterMm: 50, copies: 'max', marks: 'none' }), ['marks']);
+});
