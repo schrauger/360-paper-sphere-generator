@@ -59,20 +59,22 @@ let savedMargin = null; // the user's margin while Silhouette marks force 10 mm
 const presetOptions = SILHOUETTE_PRESETS.letter.map((mm) => Object.assign(document.createElement('option'), {
   value: `preset-${mm}`, textContent: `${mm} mm · Silhouette cut file`,
 }));
-let modeBeforePreset = 'largest';
 const isPresetMode = (mode) => mode.startsWith('preset-');
 
-/** Preset diameters are offered only for Letter + Silhouette marks (and no 360craft preset); otherwise they are removed and the diameter choice returns to what it was. */
+/** Preset diameters are offered only for Letter + Silhouette marks (and no 360craft preset); otherwise they are removed and a chosen preset size becomes the same size as a Custom diameter. */
 function syncPresetChoices(presetSheet) {
   const select = $('diameterMode');
   const offer = !presetSheet && $('page').value === 'letter' && $('marks').value === 'silhouette';
   const listed = presetOptions[0].parentNode === select;
   if (offer && !listed) select.append(...presetOptions);
   else if (!offer && listed) {
-    if (isPresetMode(select.value)) select.value = modeBeforePreset;
+    const chosen = isPresetMode(select.value) ? select.value.slice('preset-'.length) : null;
     presetOptions.forEach((o) => o.remove());
+    if (chosen) {
+      select.value = 'custom';
+      $('diameter').value = chosen;
+    }
   }
-  if (!isPresetMode(select.value)) modeBeforePreset = select.value;
   const preset = isPresetMode(select.value);
   $('studio3-option').disabled = !preset;
   if (!preset && $('cutFile').value === 'studio3') $('cutFile').value = '';
@@ -474,6 +476,24 @@ $('render').addEventListener('click', () => {
 
 let downloadUrls = [];
 
+/** { url, name } of the chosen preset's .studio3 when ".studio3 (Silhouette)" is chosen and the file exists, else null. */
+async function studio3Choice() {
+  const mode = $('diameterMode').value;
+  if ($('cutFile').value !== 'studio3' || !isPresetMode(mode)) return null;
+  const path = studio3Path('letter', Number(mode.slice('preset-'.length)));
+  if (!(await hasStudio3(path))) return null;
+  return { url: new URL(`../${path}`, import.meta.url).href, name: path.split('/').pop() };
+}
+
+/** Start the download of a static file (like download() does for a blob) and return a link to it. */
+function downloadUrl(url, name) {
+  const a = Object.assign(document.createElement('a'), { href: url, download: name, textContent: name });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  return Object.assign(document.createElement('a'), { href: url, download: name, textContent: name });
+}
+
 function download(blob, name) {
   const url = URL.createObjectURL(blob);
   downloadUrls.push(url);
@@ -486,16 +506,18 @@ function download(blob, name) {
 
 const EXTENSIONS = new Map([['application/pdf', 'pdf'], ['image/png', 'png'], ['image/jpeg', 'jpg']]);
 
-function finishRender({ blob, cutFile, diameterMm, warnings }) {
+async function finishRender({ blob, cutFile, diameterMm, warnings }) {
   setRendering(false);
   const base = fileName.replace(/\.[^./\\]+$/, '') || 'panorama';
   const extension = EXTENSIONS.get(blob.type);
   if (!extension) throw new Error(`Unexpected sheet type ${blob.type || '(none)'}`);
   const links = [download(blob, `${base}-sheet.${extension}`)];
+  const studio3 = await studio3Choice();
   if (cutFile) {
     const type = cutFile.type === 'svg' ? 'image/svg+xml' : 'application/dxf';
     links.push(download(new Blob([cutFile.content], { type }), `${base}-sheet.${cutFile.type}`));
   }
+  if (studio3) links.push(downloadUrl(studio3.url, studio3.name));
   showDiameter(diameterMm);
   $('downloads').replaceChildren('Downloaded: ', ...links.flatMap((a, i) => (i ? [' · ', a] : [a])));
   showWarnings(warnings);

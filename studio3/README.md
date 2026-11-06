@@ -9,7 +9,7 @@ and bleed, so one file per size fits every render.
 
 ## Making a file
 
-1. `node tools/silhouette-presets.mjs /tmp/presets` writes `letter-<D>mm.svg` for every size
+1. `node tools/silhouette-presets.mjs ./presets` writes `letter-<D>mm.svg` for every size
    (red cut lines, black registration marks).
 2. In Silhouette Studio, set the page to Letter and import the SVG at the page origin (0, 0).
 3. Turn on Type 1 registration marks at a 10 mm inset.

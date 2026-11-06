@@ -65,7 +65,7 @@ The marks a cutting machine's optical sensor uses to line up its cuts with a pri
 _Avoid_: cutting markers, corner markers, crop marks
 
 **Preset size**:
-A Letter sheet with Silhouette marks and a whole-mm sphere diameter (40, 45, 50, 55, 60 or 62 mm) that has a committed Silhouette Studio cut file in `studio3/`. The cut lines sit at the same mm positions at any DPI and bleed, so one file fits every render. Not the same as a 360craft preset, which fixes the whole sheet.
+A Letter sheet with Silhouette marks and a whole-mm sphere diameter (40, 45, 50, 55, 60 or 62 mm) that gets a Silhouette Studio cut file from `studio3/`; the files are added size by size as they are made (none exist yet). The cut lines sit at the same mm positions at any DPI and bleed, so one file fits every render. Not the same as a 360craft preset, which fixes the whole sheet.
 _Avoid_: size preset, Silhouette preset
 
 ## Reference

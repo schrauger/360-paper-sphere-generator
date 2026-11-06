@@ -65,7 +65,8 @@ anything else is an error.
 Choose Letter, Silhouette marks and one of the preset sphere sizes in the web app, then download the
 sheet (a PDF) and the matching `.studio3` cut file beside it. Print the PDF at 100% (no scaling or
 fit to page), open the `.studio3` in Silhouette Studio, load the printed sheet and cut. The files
-live in [`studio3/`](studio3/README.md); if one is missing for a size, use the SVG cut file instead.
+live in [`studio3/`](studio3/README.md) and are added size by size as they are made (none exist yet); if
+one is missing for a size, the web app says so and you can use the SVG cut file instead.
 
 `node cli.js --help` prints the same list. Node ≥ 22 is needed to run the tests (`npm test`); the
 package itself runs on Node ≥ 20.

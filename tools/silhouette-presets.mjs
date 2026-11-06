@@ -7,7 +7,7 @@ import { makeModelGeometry } from '../src/model/geometry.js';
 import { layoutSheet } from '../src/layout/sheet.js';
 import { PAGE_SIZES } from '../src/options.js';
 import { cutPathSvg } from '../src/export/svg.js';
-import { SILHOUETTE_PRESETS, studio3Path } from '../src/layout/silhouette-presets.js';
+import { SILHOUETTE_PRESETS } from '../src/layout/silhouette-presets.js';
 
 const outDir = process.argv[2];
 if (!outDir) {
@@ -20,7 +20,7 @@ for (const [pageName, diameters] of Object.entries(SILHOUETTE_PRESETS)) {
   const [widthMm, heightMm] = PAGE_SIZES[pageName];
   for (const diameterMm of diameters) {
     const layout = layoutSheet(MODEL_360CRAFT, outline, { page: { widthMm, heightMm }, diameterMm, marks: 'silhouette' });
-    const name = studio3Path(pageName, diameterMm).replace(/^studio3\//, '').replace(/\.studio3$/, '.svg');
+    const name = `${pageName}-${diameterMm}mm.svg`;
     await writeFile(join(outDir, name), cutPathSvg(layout, outline, { includeMarks: true }));
     console.log(join(outDir, name));
   }
