@@ -7,6 +7,9 @@ import { composeSheet } from './render/compose.js';
 import { MAX_BLEED_R, totalRotation } from './render/warp.js';
 import { cutPathSvg } from './export/svg.js';
 import { cutPathDxf } from './export/dxf.js';
+import { layoutInMm } from './export/pieces.js';
+import { markOutlines } from './render/marks.js';
+import { tieWarnings } from './export/ties.js';
 
 const MM_PER_IN = 25.4;
 
@@ -63,6 +66,9 @@ export function renderSheet(pano, options) {
     rotation: totalRotation(model, options.orientation),
   });
   const includeMarks = layout.marks.length > 0;
+  if (options.cutFile && options.tieMm && layout.pieces.length) {
+    warnings.push(...tieWarnings(layoutInMm(layout, outline, false, markOutlines).cuts[0], options.tieMm));
+  }
   let cutFile = null;
   if (options.cutFile === 'svg') cutFile = { type: 'svg', content: cutPathSvg(layout, outline, { includeMarks, tieMm: options.tieMm }) };
   else if (options.cutFile === 'dxf') cutFile = { type: 'dxf', content: cutPathDxf(layout, outline, { includeMarks, tieMm: options.tieMm }) };

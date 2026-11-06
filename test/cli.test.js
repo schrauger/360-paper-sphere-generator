@@ -180,4 +180,5 @@ test('--ties and --tie-width leave gaps in the SVG cut file', async () => {
   assert.ok(!count(['--ties']).includes('Z'));
   assert.ok(!count(['--tie-width', '1']).includes('Z'));
   assert.equal(run(input, '-o', join(dir, 'x.png'), '--tie-width', '9').status, 2);
+  assert.match(run(input, '-o', join(dir, 'y.png'), '--dpi', '72', '--ties').stderr, /--ties has no effect without --cut-file/);
 });

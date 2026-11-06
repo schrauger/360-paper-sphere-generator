@@ -106,6 +106,7 @@ async function main() {
   const pano = { width: info.width, height: info.height, data: new Uint8ClampedArray(data.buffer, data.byteOffset, data.length) };
 
   const { image, warnings, diameterMm, cutFile } = renderSheet(pano, options);
+  if (options.tieMm && !options.cutFile) warnings.push('--ties has no effect without --cut-file svg|dxf');
   if (format === 'pdf') {
     const rgbDeflated = deflateSync(rgbFromRgba(image.data));
     await writeFile(out, sheetPdf({ widthPx: image.width, heightPx: image.height, dpi: options.dpi, rgbDeflated }));

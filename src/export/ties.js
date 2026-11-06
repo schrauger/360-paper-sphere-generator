@@ -27,8 +27,13 @@ function tipsOf(ring, corners) {
     for (let k = 1; k < TAB_CORNERS - 1; k++) if (dist(ring[run[k]], ring[run[k + 1]]) > dist(ring[run[best]], ring[run[best + 1]])) best = k;
     tips.push({ a: run[best], b: run[best + 1] });
   }
-  return tips.sort((x, y) => x.a - y.a);
+  tips.sort((x, y) => x.a - y.a);
+  tips.groups = starts.length; // corner runs found, tabs or not
+  return tips;
 }
+
+// The gap actually used for a tip edge of length `edge`.
+const gapFor = (widthMm, edge) => Math.min(widthMm, MAX_GAP_SHARE * edge);
 
 /** The tip edge of every tab on a closed cut path (mm): [[start, end], …] in path order. */
 export function tabTips(points) {
@@ -47,7 +52,7 @@ export function tieRuns(points, widthMm) {
   const n = ring.length;
   const gaps = tips.map(({ a, b }) => {
     const [p, q] = [ring[a], ring[b]];
-    const half = Math.min(widthMm, MAX_GAP_SHARE * dist(p, q)) / 2;
+    const half = gapFor(widthMm, dist(p, q)) / 2;
     const m = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
     const u = [(q[0] - p[0]) / dist(p, q), (q[1] - p[1]) / dist(p, q)];
     return { before: [m[0] - u[0] * half, m[1] - u[1] * half], after: [m[0] + u[0] * half, m[1] + u[1] * half] };
@@ -59,4 +64,18 @@ export function tieRuns(points, widthMm) {
     run.push(gaps[(k + 1) % tips.length].before);
     return run;
   });
+}
+
+/**
+ * Warnings for a cut path (mm) cut with ties of `widthMm`: ties narrowed to fit the shortest tip
+ * edge, and corner runs that are not a five-corner tab (those get no tie). [] when all is well.
+ */
+export function tieWarnings(points, widthMm) {
+  const { ring, corners } = prepare(points);
+  const tips = tipsOf(ring, corners);
+  const out = [];
+  const narrowed = Math.min(widthMm, ...tips.map(({ a, b }) => gapFor(widthMm, dist(ring[a], ring[b]))));
+  if (narrowed < widthMm - 1e-9) out.push(`Ties narrowed to ${narrowed.toFixed(2)} mm to fit the tab tips`);
+  if (tips.length !== tips.groups) out.push(`${tips.groups - tips.length} tab(s) got no tie (unexpected corner shape)`);
+  return out;
 }

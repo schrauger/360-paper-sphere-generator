@@ -7,7 +7,7 @@ import { layoutInMm } from '../../src/export/pieces.js';
 import { markOutlines } from '../../src/render/marks.js';
 import { transformPts } from '../../src/render/raster.js';
 import { smoothOpenPath, sampleSmoothPath, simplifyOpen, SMOOTH_TOLERANCE_MM } from '../../src/export/smooth.js';
-import { TIE_WIDTH_MM, tabTips, tieRuns } from '../../src/export/ties.js';
+import { TIE_WIDTH_MM, tabTips, tieRuns, tieWarnings } from '../../src/export/ties.js';
 import { cutPathSvg } from '../../src/export/svg.js';
 import { cutPathDxf } from '../../src/export/dxf.js';
 import { readDxfLines } from '../support/dxf.js';
@@ -27,15 +27,15 @@ const tabTipsOfOutline = (affine) => outline.tabs.map((poly) => {
 });
 
 test('every tab has a tip edge, and the tips are the tab polygons\' outermost edges', () => {
-  const piece = layout.pieces[0];
-  const tips = tabTips(cuts[0]);
-  assert.equal(tips.length, outline.tabs.length);
-  assert.equal(tips.length, 50);
-  const want = tabTipsOfOutline(piece.affine).map(([a, b]) => mid(a, b));
-  for (const [a, b] of tips) {
-    const m = mid(a, b);
-    assert.ok(want.some((w) => d(w, m) < 1e-6), 'tip is a tab polygon tip');
-  }
+  layout.pieces.forEach((piece, pi) => {
+    const tips = tabTips(cuts[pi]);
+    assert.equal(tips.length, outline.tabs.length);
+    const want = tabTipsOfOutline(piece.affine).map(([a, b]) => mid(a, b));
+    for (const [a, b] of tips) {
+      const m = mid(a, b);
+      assert.ok(want.some((w) => d(w, m) < 1e-6), 'tip is a tab polygon tip');
+    }
+  });
 });
 
 test('one tie per tab on every piece: chord, centre, and total length', () => {
@@ -56,10 +56,25 @@ test('one tie per tab on every piece: chord, centre, and total length', () => {
   }
 });
 
+// A square with extra points along each side (so its corners are not adjacent to the tab's) and `tab` on the bottom edge.
+const withTab = (tab) => [[0, 0], [1, 0], [2, 0], ...tab, [8, 0], [9, 0], [10, 0], [10, 5], [10, 10], [5, 10], [0, 10], [0, 5]];
+
 test('a wider tie is clamped to the tip edge', () => {
-  const runs = tieRuns(cuts[0], 3);
-  const gap = d(runs[0][runs[0].length - 1], runs[1][0]);
-  assert.ok(gap <= 3 + 1e-9 && gap > 0);
+  // A synthetic square with one five-corner tab whose tip edge is 2 mm long.
+  const shape = [[3, 0], [3, -1], [5, -1], [5, -0.5], [5.5, 0]]; // A, O1, O2, O3, B: tip O1-O2 = 2 mm
+  const path = withTab(shape);
+  const runs = tieRuns(path, 3);
+  const gap = d(runs[0][runs[0].length - 1], runs[0][0]);
+  assert.ok(Math.abs(gap - 1.6) < 1e-9, `gap ${gap}`);
+  assert.ok(tieWarnings(path, 3).includes('Ties narrowed to 1.60 mm to fit the tab tips'));
+  assert.ok(!tieWarnings(path, 1).some((w) => /narrowed/.test(w)));
+  assert.deepEqual(tieWarnings(cuts[0], TIE_WIDTH_MM), []);
+});
+
+test('a corner run that is not a five-corner tab is reported', () => {
+  const four = withTab([[3, 0], [3, -1], [5, -1], [5, 0]]); // 4-corner flap
+  assert.equal(tieRuns(four, 0.5), null);
+  assert.deepEqual(tieWarnings(four, 0.5), ['5 tab(s) got no tie (unexpected corner shape)']);
 });
 
 test('a path without tabs has no ties', () => {
