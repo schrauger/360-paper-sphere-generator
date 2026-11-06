@@ -31,7 +31,10 @@ const TIP_ARC = 1; // R: seam vertices within this arc length of a tip are "tip 
 const FIT_STEP = 0.01; // seam polyline step inside the optimiser (R)
 const REPORT_STEP = 0.002; // and for the final report (develop.js default)
 const FIT_MATCHES = 4000; // correspondences sampled for the optimiser (all are used for the report)
+// Plan targets, and the fallback the maintainer set if one bow-chasing round misses them
+// (ruling R16): seam p95 instead of max, over the same seam vertices.
 const ACCEPT = { median: 1.0, seamMean: 0.5, seamMax: 1.5 };
+const ACCEPT_R16 = { median: 1.0, seamMean: 0.75, seamP95: 1.5 };
 const HALF_PI = Math.PI / 2;
 const DEG = Math.PI / 180;
 
@@ -452,7 +455,10 @@ function evaluate(v, bands) {
   const dists = seamDistances(geo, model);
   const seamVerts = dists.filter((x) => x.d <= SEAM_NEAR);
   const isTip = (x) => x.s < TIP_ARC || x.s > geo.L - TIP_ARC;
-  const seam = (list) => ({ n: list.length, mean: round(mean(list.map((x) => x.d))), max: round(Math.max(...list.map((x) => x.d))) });
+  const seam = (list) => {
+    const d = list.map((x) => x.d);
+    return { n: d.length, mean: round(mean(d)), p95: round(quantile(d, 0.95)), max: round(Math.max(...d)) };
+  };
   const resampled = seamDistances(geo, model, dxfResampled).filter((x) => x.d <= SEAM_NEAR);
   const cTotal = mean(r.map(huber)) + dxfTerm(dists);
   const summary = {
@@ -481,7 +487,11 @@ function evaluate(v, bands) {
       fractionWithin: Object.fromEntries([0.5, 1, 1.5, 2].map((t) => [t, round(dists.filter((x) => x.d <= t).length / dists.length, 3)])),
     },
   };
-  summary.accepted = summary.correspondence.median <= ACCEPT.median && summary.seam.mean <= ACCEPT.seamMean && summary.seam.max <= ACCEPT.seamMax;
+  const { median } = summary.correspondence;
+  const { mean: seamMean, p95: seamP95, max: seamMax } = summary.seam;
+  summary.meetsTargets = median <= ACCEPT.median && seamMean <= ACCEPT.seamMean && seamMax <= ACCEPT.seamMax;
+  summary.meetsR16 = median <= ACCEPT_R16.median && seamMean <= ACCEPT_R16.seamMean && seamP95 <= ACCEPT_R16.seamP95;
+  summary.accepted = summary.meetsTargets || summary.meetsR16;
   return summary;
 }
 
@@ -490,7 +500,7 @@ const report = {
   generated: new Date().toISOString(),
   unrolling: 'develop.js (closest-point strip + tip cells, flat offsets tan d / tan ρ)',
   data: { fixtures: FIXTURES, matches: matches.length, fitMatches: fitMatches.length, dxf: path.basename(manifest.dxfPath), fitStep: FIT_STEP, reportStep: REPORT_STEP },
-  acceptance: ACCEPT,
+  acceptance: { targets: ACCEPT, r16: ACCEPT_R16 },
   init: result.init,
   clelia: evaluate(result.v, result.bands),
 };
