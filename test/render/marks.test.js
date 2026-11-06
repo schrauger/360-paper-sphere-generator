@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createImage } from '../../src/render/raster.js';
-import { drawMarks } from '../../src/render/marks.js';
+import { drawMarks, markOutlines } from '../../src/render/marks.js';
 import { MODEL_360CRAFT } from '../../src/model/360craft.js';
 import { makeModelGeometry } from '../../src/model/geometry.js';
 import { layoutSheet } from '../../src/layout/sheet.js';
@@ -64,4 +64,53 @@ test('R28: guide throws RangeError for more than 8 pieces', () => {
 test('R28: makePixelMapper rejects NaN, infinite and negative bleedR', () => {
   for (const bleedR of [NaN, Infinity, -0.01]) assert.throws(() => makePixelMapper(layout, geometry, { bleedR }), RangeError);
   assert.doesNotThrow(() => makePixelMapper(layout, geometry, { bleedR: 0 }));
+});
+
+// Even-odd point-in-polygon and distance from a point to a polygon's boundary (px).
+function insidePoly(poly, x, y) {
+  let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i];
+    const [xj, yj] = poly[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c;
+  }
+  return c;
+}
+function distToBoundary(poly, x, y) {
+  let d = Infinity;
+  for (let i = 0; i < poly.length; i++) {
+    const [ax, ay] = poly[i];
+    const [bx, by] = poly[(i + 1) % poly.length];
+    const vx = bx - ax;
+    const vy = by - ay;
+    const t = Math.max(0, Math.min(1, ((x - ax) * vx + (y - ay) * vy) / (vx * vx + vy * vy)));
+    d = Math.min(d, Math.hypot(ax + t * vx - x, ay + t * vy - y));
+  }
+  return d;
+}
+
+test('drawMarks fills exactly the markOutlines polygons (pixel centres vs outlines)', () => {
+  const polys = markOutlines(layout.marks);
+  // A pixel's square is entirely inside a polygon when its centre is at least half a diagonal from every
+  // edge, and entirely outside when its centre is more than 1 px from every edge and outside them all.
+  const HALF_DIAG = Math.SQRT1_2;
+  let checked = 0;
+  for (const poly of polys) {
+    const xs = poly.map((p) => p[0]);
+    const ys = poly.map((p) => p[1]);
+    const [x0, x1] = [Math.max(0, Math.floor(Math.min(...xs)) - 2), Math.min(img.width - 1, Math.ceil(Math.max(...xs)) + 2)];
+    const [y0, y1] = [Math.max(0, Math.floor(Math.min(...ys)) - 2), Math.min(img.height - 1, Math.ceil(Math.max(...ys)) + 2)];
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const cx = x + 0.5;
+        const cy = y + 0.5;
+        const d = Math.min(...polys.map((p) => distToBoundary(p, cx, cy)));
+        const inAny = polys.some((p) => insidePoly(p, cx, cy));
+        if (inAny && d >= HALF_DIAG) assert.ok(black(x, y), `pixel ${x},${y} inside a mark is not black`);
+        if (!inAny && d > 1) assert.ok(!black(x, y), `pixel ${x},${y} outside every mark is black`);
+        checked++;
+      }
+    }
+  }
+  assert.ok(checked > 1000, `only ${checked} pixels checked`);
 });
