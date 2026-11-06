@@ -36,7 +36,7 @@ function parsePage(page) {
     return { widthMm, heightMm };
   }
   const key = String(page).toLowerCase();
-  if (PAGE_SIZES[key]) return { widthMm: PAGE_SIZES[key][0], heightMm: PAGE_SIZES[key][1] };
+  if (Object.hasOwn(PAGE_SIZES, key)) return { widthMm: PAGE_SIZES[key][0], heightMm: PAGE_SIZES[key][1] };
   const m = /^(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)mm$/.exec(key);
   if (m && Number(m[1]) > 0 && Number(m[2]) > 0) return { widthMm: Number(m[1]), heightMm: Number(m[2]) };
   throw new OptionError(`--page must be ${Object.keys(PAGE_SIZES).join(', ')} or <W>x<H>mm (got ${page})`);

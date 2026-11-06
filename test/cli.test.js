@@ -4,9 +4,10 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 
-const CLI = new URL('../cli.js', import.meta.url).pathname;
+const CLI = fileURLToPath(new URL('../cli.js', import.meta.url));
 let dir;
 before(() => { dir = mkdtempSync(join(tmpdir(), 'paper-sphere-')); });
 after(() => rmSync(dir, { recursive: true, force: true }));
@@ -113,4 +114,24 @@ test('.jpg output with --quality 80 is JPEG', async () => {
   assert.equal(r.status, 0, r.stderr);
   const m = await sharp(out).metadata();
   assert.deepEqual([m.format, m.density], ['jpeg', 72]);
+});
+
+test('--margin -1 → exit 2 naming --margin; --margin=-1 reaches the option check', async () => {
+  const input = await makeInput('m.png', 64, 32);
+  const out = join(dir, 'm-out.png');
+  const spaced = run(input, '-o', out, '--margin', '-1');
+  assert.equal(spaced.status, 2);
+  assert.match(spaced.stderr, /--margin/);
+  assert.doesNotMatch(spaced.stderr, /\n\s+at /);
+  const equals = run(input, '-o', out, '--margin=-1');
+  assert.equal(equals.status, 2);
+  assert.match(equals.stderr, /--margin must be ≥ 0 mm \(got -1\)/);
+});
+
+test('output in a missing directory → exit 1, message only, no stack trace', async () => {
+  const input = await makeInput('n.png', 64, 32);
+  const r = run(input, '-o', join(dir, 'no-such-dir', 'n-out.png'), '--dpi', '72');
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /unable to (open|write)|No such file/);
+  assert.doesNotMatch(r.stderr, /\n\s+at /);
 });

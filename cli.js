@@ -11,6 +11,7 @@ const USAGE = `Usage: paper-sphere <input> -o <out.png|out.jpg> [options]
   --page letter|a4|a3|tabloid|<W>x<H>mm   page size (default letter)
   --dpi N                               72–1200 (default 300)
   --diameter MM                         sphere diameter (default: largest that fits)
+  --margin MM                           margin around the sheet (default 6.35)
   --outline | --no-outline              cut outline (default on)
   --bleed MM|auto|off                   image bleed past the cut line (default off)
   --marks silhouette                    Silhouette registration marks
@@ -25,6 +26,7 @@ const { values, positionals } = (() => {
       options: {
         output: { type: 'string', short: 'o' },
         preset: { type: 'string' }, page: { type: 'string' }, dpi: { type: 'string' }, diameter: { type: 'string' },
+        margin: { type: 'string' },
         outline: { type: 'boolean' }, 'no-outline': { type: 'boolean' },
         bleed: { type: 'string' }, marks: { type: 'string' },
         yaw: { type: 'string' }, pitch: { type: 'string' }, roll: { type: 'string' },
@@ -57,6 +59,7 @@ async function main() {
     page: values.page,
     dpi: values.dpi,
     diameterMm: values.diameter,
+    marginMm: values.margin,
     outline: values['no-outline'] ? false : values.outline,
     bleed: values.bleed,
     marks: values.marks,
@@ -88,8 +91,10 @@ async function main() {
 }
 
 main().catch((e) => {
-  // Bad options and the layout's RangeErrors (page too small, sheet too large, …): the message only.
-  if (e instanceof OptionError || e instanceof RangeError) fail(e.message);
-  console.error(e.stack ?? e);
+  // Never a stack trace: the message only. Bad options and the layout's RangeErrors (page too small,
+  // sheet too large, …) exit 2; anything else (unwritable output, encoder failure, …) exits 1.
+  const message = e instanceof Error ? e.message : String(e);
+  if (e instanceof OptionError || e instanceof RangeError) fail(message);
+  console.error(message);
   process.exit(1);
 });

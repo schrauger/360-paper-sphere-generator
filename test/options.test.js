@@ -35,6 +35,8 @@ const rejects = (raw, flag) => assert.throws(() => normalizeOptions(raw), (e) =>
 test('bad values throw OptionError naming the option', () => {
   rejects({ page: 'foolscap' }, '--page');
   rejects({ page: '0x300mm' }, '--page');
+  rejects({ page: 'constructor' }, '--page');
+  rejects({ page: '__proto__' }, '--page');
   rejects({ preset: 'huge' }, '--preset');
   rejects({ dpi: 71 }, '--dpi');
   rejects({ dpi: 'abc' }, '--dpi');

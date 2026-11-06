@@ -18,10 +18,17 @@ function panorama(width, height) {
 }
 
 const pano = panorama(6912, 3456);
+// One warm-up run, then the median of 3 timed runs.
+const median = (xs) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
 const time = (label, fn) => {
-  const t0 = performance.now();
   fn();
-  console.log(`${label}: ${Math.round(performance.now() - t0)} ms`);
+  const runs = [];
+  for (let i = 0; i < 3; i++) {
+    const t0 = performance.now();
+    fn();
+    runs.push(performance.now() - t0);
+  }
+  console.log(`${label}: ${Math.round(median(runs))} ms (median of 3)`);
 };
 time('original-high', () => renderSheet(pano, normalizeOptions({ preset: 'original-high' })));
 // The T14 previews (sheet ≤ 50 ms, globe ≤ 30 ms) are added with the web app.
